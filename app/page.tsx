@@ -23,6 +23,7 @@ import { culturalEvents } from "@/data/events";
 import { tourTemplates, type TourTemplate } from "@/data/itineraryTemplates";
 import { buildItinerary, getOfficialDocxItinerary, getOfficialLongCocXuanSonItinerary, DISTRICT_TRAVEL_GUIDES, type GeneratedItinerary } from "@/lib/guidePlanner";
 import { getAllDistrictPlaces, getDistrictTravelGuide } from "@/lib/districtPlaceGenerator";
+import { TOUR_AUDIO_GUIDES } from "@/data/tourAudioGuides";
 import VisualItineraryV2 from "./components/VisualItineraryV2";
 import AiChatbotWidget from "./components/AiChatbotWidget";
 
@@ -4736,24 +4737,26 @@ export default function Home() {
 
     lastPlayedAudioRef.current = { textVi, textEn, onStateChange, placeId };
 
-    const activeVoiceURI = voiceOverride || selectedVoiceURI;
+    // For Vietnamese: ALWAYS use the real recorded female voice ("giong mau") as requested by user
+    if (audioLang === "vi") {
+      let specificAudioUrl: string | null = null;
+      if (placeId) {
+        if (TOUR_AUDIO_GUIDES?.tourLongCocXuanSon?.[placeId]?.audioFile) {
+          specificAudioUrl = TOUR_AUDIO_GUIDES.tourLongCocXuanSon[placeId].audioFile;
+        } else if (TOUR_AUDIO_GUIDES?.tour2n1d?.[placeId]?.audioFile) {
+          specificAudioUrl = TOUR_AUDIO_GUIDES.tour2n1d[placeId].audioFile;
+        }
+      }
 
-    // Special handler for explicit female sample preview snippet
-    const isSamplePreview =
-      textToSpeak.includes("Mẫu thuyết minh bạn Nữ") ||
-      textToSpeak.includes("Mẫu giọng bạn Nữ") ||
-      textToSpeak.includes("giong_mau") ||
-      placeId === "sample-voice";
+      const primaryUrl = specificAudioUrl || "/audio/giong_mau.m4a";
+      const fallbackUrl = specificAudioUrl || "/audio/giong_mau.wav";
 
-    if (isSamplePreview) {
       try {
         if (placeId) setSpeechPlaceId(placeId);
         setAudioState("playing");
         setAudioGuidePlaying(true);
         onStateChange?.(true);
 
-        const primaryUrl = "/audio/giong_mau.m4a";
-        const fallbackUrl = "/audio/giong_mau.wav";
         const audio = new Audio(primaryUrl);
         audio.volume = audioVolumeRef.current;
         audio.playbackRate = audioRateRef.current;
@@ -4785,8 +4788,14 @@ export default function Home() {
         return;
       } catch (err) {
         console.warn("Failed to play female sample audio:", err);
+        setAudioState("idle");
+        setAudioGuidePlaying(false);
+        onStateChange?.(false);
+        return;
       }
     }
+
+    const activeVoiceURI = voiceOverride || selectedVoiceURI;
 
     const lang = audioLang;
     const allVoices = typeof window !== "undefined" && "speechSynthesis" in window

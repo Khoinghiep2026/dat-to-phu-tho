@@ -92,14 +92,11 @@ export default function AiChatbotWidget({
     };
   }, []);
 
-  const togglePlayVoice = (msgId: string, audioUrl?: string, msgText?: string) => {
+  const togglePlayVoice = (msgId: string, audioUrl?: string) => {
     if (playingVoiceId === msgId) {
       if (voiceAudioRef.current) {
         voiceAudioRef.current.pause();
         voiceAudioRef.current = null;
-      }
-      if (typeof window !== "undefined" && "speechSynthesis" in window) {
-        window.speechSynthesis.cancel();
       }
       setPlayingVoiceId(null);
       return;
@@ -109,55 +106,8 @@ export default function AiChatbotWidget({
       voiceAudioRef.current.pause();
       voiceAudioRef.current = null;
     }
-    if (typeof window !== "undefined" && "speechSynthesis" in window) {
-      window.speechSynthesis.cancel();
-    }
 
-    // If reading arbitrary AI message text with female voice
-    if (msgText && typeof window !== "undefined" && "speechSynthesis" in window) {
-      setPlayingVoiceId(msgId);
-      const cleanText = msgText
-        .replace(/[*#_`~>]/g, "")
-        .replace(/https?:\/\/\S+/g, "")
-        .trim();
-
-      const rawSentences = cleanText
-        .split(/(?<=[.,!?;:\n])\s+/)
-        .map((s) => s.trim())
-        .filter(Boolean);
-
-      const sentences = rawSentences.length > 0 ? rawSentences : [cleanText];
-      const voices = window.speechSynthesis.getVoices().filter((v) => v.lang.toLowerCase().startsWith("vi"));
-      const femaleVoice =
-        voices.find((v) => /hoaimy|hoai my|linh|mai|chi|nu|female/i.test(v.name)) ||
-        voices.find((v) => !/nam|minh|male|an\b/i.test(v.name)) ||
-        voices[0];
-
-      let sIdx = 0;
-      const speakNext = () => {
-        if (sIdx >= sentences.length) {
-          setPlayingVoiceId(null);
-          return;
-        }
-        const utt = new SpeechSynthesisUtterance(sentences[sIdx]);
-        if (femaleVoice) utt.voice = femaleVoice;
-        utt.lang = "vi-VN";
-        utt.pitch = 1.05; // 250Hz feminine pitch matching sample
-        utt.rate = 1.0;
-        utt.onend = () => {
-          sIdx++;
-          speakNext();
-        };
-        utt.onerror = () => {
-          setPlayingVoiceId(null);
-        };
-        window.speechSynthesis.speak(utt);
-      };
-
-      speakNext();
-      return;
-    }
-
+    // ALWAYS play the authentic recorded female voice file (giong_mau.m4a / giong_mau.wav)
     const primaryUrl = audioUrl || `${basePath}/audio/giong_mau.m4a`;
     const fallbackUrl = `${basePath}/audio/giong_mau.wav`;
     const audio = new Audio(primaryUrl);
@@ -1175,7 +1125,7 @@ export default function AiChatbotWidget({
                         <button
                           type="button"
                           className={`ai-voice-play-pill ${playingVoiceId === msg.id ? "is-playing" : ""}`}
-                          onClick={() => togglePlayVoice(msg.id, undefined, msg.text)}
+                          onClick={() => togglePlayVoice(msg.id)}
                           title="Bấm để nghe thuyết minh giọng đọc mẫu"
                         >
                           <span className="ai-voice-icon">{playingVoiceId === msg.id ? "⏸️" : "🎙️"}</span>
