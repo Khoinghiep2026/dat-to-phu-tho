@@ -504,43 +504,67 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
     stopAllAudio();
     stopInternalAudio();
 
-    if (slot.audioUrl) {
-      const audio = new Audio(slot.audioUrl);
-      internalAudioRef.current = audio;
-      audio.volume = audioVolume;
-      audio.playbackRate = audioRate;
+    const audioUrls: string[] = (slot as any).audioFiles || (slot.audioUrl ? [slot.audioUrl] : []);
+    if (audioUrls.length > 0) {
+      let currentTrackIdx = 0;
 
-      audio.ontimeupdate = () => {
-        if (audio.duration && !isNaN(audio.duration)) {
-          const pct = Math.min(100, (audio.currentTime / audio.duration) * 100);
-          setAudioPlayProgress(pct);
-          const mins = Math.floor(audio.currentTime / 60);
-          const secs = Math.floor(audio.currentTime % 60);
-          setAudioCurrentTimeStr(`${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`);
+      const playTrack = (idx: number) => {
+        if (idx >= audioUrls.length) {
+          stopInternalAudio();
+          return;
         }
-      };
+        currentTrackIdx = idx;
+        const audio = new Audio(audioUrls[idx]);
+        internalAudioRef.current = audio;
+        audio.volume = audioVolume;
+        audio.playbackRate = audioRate;
 
-      audio.onloadedmetadata = () => {
-        if (audio.duration && !isNaN(audio.duration)) {
-          const mins = Math.floor(audio.duration / 60);
-          const secs = Math.floor(audio.duration % 60);
-          setAudioDurationStr(`${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`);
-        }
-      };
+        audio.ontimeupdate = () => {
+          if (audio.duration && !isNaN(audio.duration)) {
+            const pct = Math.min(100, (audio.currentTime / audio.duration) * 100);
+            setAudioPlayProgress(pct);
+            const mins = Math.floor(audio.currentTime / 60);
+            const secs = Math.floor(audio.currentTime % 60);
+            setAudioCurrentTimeStr(`${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`);
+          }
+        };
 
-      audio.onended = () => {
-        stopInternalAudio();
-      };
+        audio.onloadedmetadata = () => {
+          if (audio.duration && !isNaN(audio.duration)) {
+            const mins = Math.floor(audio.duration / 60);
+            const secs = Math.floor(audio.duration % 60);
+            setAudioDurationStr(`${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`);
+          }
+        };
 
-      audio.onerror = () => {
-        stopInternalAudio();
-        fallbackTTS(slot);
+        audio.onended = () => {
+          if (idx + 1 < audioUrls.length) {
+            playTrack(idx + 1);
+          } else {
+            stopInternalAudio();
+          }
+        };
+
+        audio.onerror = () => {
+          if (idx + 1 < audioUrls.length) {
+            playTrack(idx + 1);
+          } else {
+            stopInternalAudio();
+            fallbackTTS(slot);
+          }
+        };
+
+        audio.play().catch(() => {
+          if (idx + 1 < audioUrls.length) {
+            playTrack(idx + 1);
+          } else {
+            fallbackTTS(slot);
+          }
+        });
       };
 
       setActivePlayingSlotId(slotIdKey);
-      audio.play().catch(() => {
-        fallbackTTS(slot);
-      });
+      playTrack(0);
       return;
     }
 
