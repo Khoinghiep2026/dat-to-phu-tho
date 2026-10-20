@@ -656,6 +656,146 @@ export function handleDynamicRouteCombiner(
   };
 }
 
+export function isAskingOfficialLongCocXuanSonTour(text: string): boolean {
+  const norm = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đ]/g, "d");
+
+  // 1. Direct button actions
+  if (
+    text === "tour_long_coc" ||
+    text === "clarify_route_long_coc" ||
+    text === "plan_long_coc"
+  ) {
+    return true;
+  }
+
+  // 2. Mentions docx / file / hồ sơ thuyết minh
+  const mentionsDocx =
+    norm.includes("thuyet minh") ||
+    norm.includes("file") ||
+    norm.includes("docx") ||
+    norm.includes("folder") ||
+    norm.includes("forder") ||
+    norm.includes("tai lieu") ||
+    norm.includes("dung nhu trong file");
+
+  // 3. Mentions both Long Cốc & Xuân Sơn
+  const hasLongCoc = norm.includes("long coc");
+  const hasXuanSon = norm.includes("xuan son");
+
+  if (hasLongCoc && hasXuanSon) {
+    // If explicitly asking for 2-day trip and not 1-day, let 2N1D handler process it
+    const isExplicit2Days =
+      (norm.includes("2 ngay") || norm.includes("2n1d") || norm.includes("2n1đ")) &&
+      !norm.includes("1 ngay");
+    if (isExplicit2Days) {
+      return false;
+    }
+    // Any query asking to combine Long Coc & Xuan Son (whether 1 day, san may, viet tri, an sang, an trua, lo tuyen, etc.)
+    return true;
+  }
+
+  // 4. Mentions docx with Long Coc or Xuan Son
+  if ((hasLongCoc || hasXuanSon) && mentionsDocx) {
+    return true;
+  }
+
+  // 5. Specific prompt indicators from the user request
+  if (
+    hasLongCoc &&
+    (norm.includes("san may") || norm.includes("tony luan") || norm.includes("xom bong")) &&
+    (norm.includes("1 ngay") || norm.includes("viet tri") || norm.includes("nghi chan"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+export function buildOfficialLongCocXuanSonResponse(
+  survey: AiSurveyState,
+  greeting: string
+): AiResponseResult {
+  const itinerary = getOfficialLongCocXuanSonItinerary("vi", survey.userLocation);
+
+  const text =
+    `${greeting}Em đã xây dựng cho bạn **Lịch trình du lịch 1 ngày chuẩn xác: TP. Việt Trì – Đồi chè Long Cốc – Vườn quốc gia Xuân Sơn** theo đúng nội dung hồ sơ **"THUYẾT MINH LONG CỐC - XUÂN SƠN"** đã có trong hệ thống! 🍃✨\n\n` +
+    `Lịch trình được thiết kế khoa học, tối ưu thời gian di chuyển, ưu tiên khung giờ vàng săn mây và đón bình minh tại Long Cốc, đồng thời bố trí các điểm ăn sáng tại **Homestay Tony Luận (Xóm Bông 1)**, ăn trưa ẩm thực miền núi tại **Nhà hàng Thế Nhé 1 (Bản Dù)** và khám phá văn hóa bản địa trọn vẹn nhất.\n\n` +
+    `---\n\n` +
+    `### 📋 **LỘ TUYẾN 1 NGÀY CHUẨN XÁC: VIỆT TRÌ – LONG CỐC – VQG XUÂN SƠN**\n` +
+    `*(Khởi hành: 04:30 | Kết thúc: 16:30 | Tổng cự ly: ~180 km khứ hồi | Thời gian lái xe: ~4 giờ)*\n\n` +
+    `#### **1. 04:30 – 05:00 | Chặng 1: Khởi hành từ Việt Trì**\n` +
+    `• **Lộ trình:** Đoàn tập trung tại TP. Việt Trì lúc 04:30 sáng, xuất phát sớm theo tuyến Quốc lộ 32 qua ngã ba Thanh Sơn, rẽ vào ĐT316 hướng về xã Long Cốc, huyện Tân Sơn (~70 km, 1 giờ 30 phút lái xe).\n` +
+    `• **Thuyết minh Trợ lý:** Trợ lý Du lịch Đất Tổ mở đầu hành trình giới thiệu khái quát về cảnh quan, con người và những giá trị văn hóa của quê hương Đất Tổ. Khởi hành sớm lúc bình minh là điều kiện tiên quyết để kịp bắt trọn thời khắc sương mai và biển mây bồng bềnh kỳ ảo.\n\n` +
+    `#### **2. 05:00 – 07:00 | Chặng 2: Tham quan Đồi chè Long Cốc (Săn mây & Đón bình minh)**\n` +
+    `• **Địa điểm:** Đồi chè Long Cốc, xã Long Cốc, huyện Tân Sơn (tọa độ ngắm mây đẹp nhất tại đồi Đội 3 hoặc đồi Cầu Mới).\n` +
+    `• **Trải nghiệm:** Chiêm ngưỡng "Vịnh Hạ Long trên cạn" của vùng trung du với hàng trăm quả đồi chè tròn xoe nối tiếp nhau như những chiếc bát úp khổng lồ lững lờ giữa biển mây trắng muốt khi ánh bình minh dần xuất hiện.\n` +
+    `• **Thuyết minh & Lưu ý:** Tìm hiểu về sự lao động bền bỉ, vun trồng chăm sóc của đồng bào Mường qua từng mùa vụ. Quý khách tự do ngắm cảnh, chụp ảnh; chú ý giữ gìn cảnh quan, không giẫm đạp lên luống chè, không tự ý hái chè và bảo vệ vệ sinh môi trường.\n\n` +
+    `#### **3. 07:00 – 07:45 | Chặng 3: Ăn sáng tại Homestay Tony Luận**\n` +
+    `• **Địa điểm:** **Homestay Tony Luận – Xóm Bông 1, xã Long Cốc**.\n` +
+    `• **Trải nghiệm & Nghỉ chân:** Dừng chân nghỉ ngơi, nạp năng lượng trong không gian nhà sàn gỗ thoáng mát, mộc mạc bản Mường.\n` +
+    `• **Ẩm thực gợi ý:** Bữa sáng ấm nóng với xôi ngũ sắc nếp nương dẻo thơm, măng xào thịt bản, bánh mì trứng ốp la và nhâm nhi ấm trà Shan tuyết cổ thụ Long Cốc nóng hổi có vị chát dịu thanh mát, ngọt hậu sâu lắng.\n\n` +
+    `#### **4. 07:45 – 08:30 | Chặng 4: Tiếp tục khám phá & chụp ảnh tại Long Cốc**\n` +
+    `• **Trải nghiệm:** Khi ánh nắng lên cao, sắc xanh của nương chè hiện rõ nét và tươi mới. Thời điểm lý tưởng để lưu giữ những góc nhìn bao quát toàn cảnh bát úp hoặc dạo theo lối đi nương chè.\n` +
+    `• **Hoạt động:** Du khách có thể thuê trang phục truyền thống rực rỡ của đồng bào Mường, Dao (30.000 – 50.000đ/bộ) để có những bộ ảnh check-in để đời.\n\n` +
+    `#### **5. 08:30 – 09:30 | Chặng 5: Di chuyển đến Vườn quốc gia Xuân Sơn**\n` +
+    `• **Cự ly:** Khoảng 25 km đường liên xã nối từ Long Cốc sang VQG Xuân Sơn (thời gian di chuyển khoảng 45 – 60 phút).\n` +
+    `• **Cảnh quan chuyển tiếp:** Quý khách ngắm nhìn cảnh sắc trung du và miền núi thay đổi kỳ thú: từ những đồi chè tròn mềm mại dần chuyển sang những dãy núi đá vôi sừng sững, rừng xanh nguyên sinh và bản làng miền núi.\n\n` +
+    `#### **6. 09:30 – 11:30 | Chặng 6: Tham quan Vườn quốc gia Xuân Sơn**\n` +
+    `• **Giới thiệu:** VQG Xuân Sơn được thành lập theo **Quyết định số 49/2002/QĐ-TTg ngày 17/04/2002 của Thủ tướng Chính phủ** – "lá phổi xanh" có ý nghĩa bảo tồn sinh thái, đa dạng sinh học vô giá của Đất Tổ.\n` +
+    `• **Trải nghiệm:** Khám phá địa hình núi đá vôi nhiệt đới, rừng nguyên sinh rợp bóng cổ thụ nghìn năm, tham quan Bảo tàng Thiên nhiên, chiêm ngưỡng suối Thác Chín Tầng và thám hiểm hệ thống hang động tự nhiên (Hang Na, Hang Lạng) với thạch nhũ muôn hình vạn trạng.\n` +
+    `• **Lưu ý bảo tồn:** Đi theo tuyến đường mòn sinh thái được lát đá an toàn, tuân thủ hướng dẫn, không tự ý đi vào rừng sâu hoặc hang động khi chưa có hướng dẫn, không xả rác để gìn giữ môi trường sống tự nhiên.\n\n` +
+    `#### **7. 11:30 – 13:00 | Chặng 7: Ăn trưa tại Nhà hàng Thế Nhé 1**\n` +
+    `• **Địa điểm:** **Nhà hàng Thế Nhé 1 – Khu vực Bản Dù, xã Xuân Sơn**.\n` +
+    `• **Ẩm thực đặc sản đại ngàn:** Thưởng thức mâm cỗ lá phong vị miền núi phong phú:\n` +
+    `  🍗 **Gà nhiều cựa (Gà chín cựa) nướng than hoa:** Thịt ngọt giòn, săn chắc trứ danh.\n` +
+    `  🥓 **Thịt lợn mán nướng lá móc mật:** Thơm bùi đậm đà bản địa.\n` +
+    `  🥗 **Rau dớn rừng xào tỏi / nộm rau dớn:** Đặc sản suối rừng giòn ngọt tươi non.\n` +
+    `  🐟 **Cá suối chiên giòn & canh măng chua hạt dổi:** Ấm lòng thực khách.\n` +
+    `• **Nghỉ ngơi:** Thư giãn bên hiên nhà sàn lộng gió, lắng nghe tiếng suối reo róc rách.\n\n` +
+    `#### **8. 13:00 – 14:30 | Chặng 8: Khám phá Bản Dù & Văn hóa bản địa**\n` +
+    `• **Địa điểm:** Bản Dù, VQG Xuân Sơn.\n` +
+    `• **Trải nghiệm văn hóa:** Dạo bước qua cầu treo gỗ thơ mộng vào bản làng; tìm hiểu nhịp sống bình dị gắn bó với núi rừng của đồng bào người **Dao Tiền** và người **Mường**; chiêm ngưỡng nghề dệt thổ cẩm truyền thống.\n` +
+    `• **Ý nghĩa:** Chuyến đi giúp du khách hiểu rằng phát triển du lịch luôn đi đôi với bảo tồn thiên nhiên và tôn trọng văn hóa bản địa. Quý khách có thể mua mật ong rừng nguyên chất, măng đắng về làm quà.\n\n` +
+    `#### **9. 14:30 – 16:30 | Chặng 9: Khởi hành trở về Việt Trì**\n` +
+    `• **Lộ trình:** Đoàn tập trung lên xe, khởi hành từ VQG Xuân Sơn theo Quốc lộ 32 qua Thanh Sơn, Tam Nông trở về trung tâm TP. Việt Trì (~85 km, 2 giờ lái xe).\n` +
+    `• **Lời kết:** Trợ lý Du lịch Đất Tổ gửi lời cảm ơn và hẹn gặp lại quý khách ở những chuyến đi tiếp theo!\n\n` +
+    `---\n\n` +
+    `💰 **BẢNG DỰ TOÁN KINH PHÍ THAM KHẢO (1 NGÀY / NGƯỜI):**\n` +
+    `• 🍲 Ăn sáng Homestay Tony Luận (xôi nếp nương, trứng, ấm trà Shan tuyết): ~40.000 – 45.000đ\n` +
+    `• 🍗 Ăn trưa Nhà hàng Thế Nhé 1 (mâm cỗ gà chín cựa, lợn mán, rau dớn): ~180.000 – 200.000đ\n` +
+    `• 🎟️ Vé tham quan VQG Xuân Sơn: 30.000đ/người (Đồi chè Long Cốc miễn phí vé)\n` +
+    `• 📸 Thuê trang phục dân tộc check-in nương chè: ~40.000đ/bộ\n` +
+    `• 🚗 Chi phí xăng xe / đi lại: ~60.000 – 80.000đ/người\n` +
+    `👉 **Tổng chi phí bình quân:** **Chỉ khoảng ~350.000 – 400.000 VNĐ / người**\n\n` +
+    `👉 *Em đã tải sẵn lộ tuyến này vào hệ thống bản đồ số GPS bên dưới. Bạn có thể bấm nút **Xem trên Bản Đồ GPS** để xem bản đồ lộ trình hoặc bấm phát Audio thuyết minh cho từng chặng nhé!*`;
+
+  const options = [
+    { label: "👉 Mở Toàn Bộ Lịch Trình Trên Bản Đồ GPS", value: "view_trip_now", icon: "🗺️" },
+    { label: "💾 Lưu vào Lịch trình của tôi", value: "save_trip_now", icon: "⭐" },
+    { label: "🎙️ Nghe Audio Thuyết Minh Long Cốc", value: "audio_long_coc", icon: "🎙️" },
+    { label: "🍲 Quán ăn & Đặc sản Tân Sơn", value: "food_district-tan-son", icon: "🥢" },
+  ];
+
+  return {
+    text,
+    itinerary,
+    options,
+    updatedSurvey: {
+      ...survey,
+      durationDays: 1,
+      durationNights: 0,
+      anchorPlaceId: "doi-che-long-coc",
+      destinationText: "Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn (1 Ngày)",
+      district: "Xã Long Cốc",
+      region: "Phú Thọ",
+    },
+  };
+}
+
 export function handleSmartKnowledgeQuery(
   rawText: string,
   survey: AiSurveyState,
@@ -739,7 +879,12 @@ function formatAttractionInfo(
   };
 }
 
-// 1.1. DYNAMIC ROUTE COMBINER & RANDOM ITINERARY GENERATOR
+  // 1.05. OFFICIAL DOCX TOUR: VIỆT TRÌ – ĐỒI CHÈ LONG CỐC – VQG XUÂN SƠN (1 NGÀY CHUẨN FILE HỒ SƠ)
+  if (isAskingOfficialLongCocXuanSonTour(trimmed)) {
+    return buildOfficialLongCocXuanSonResponse(survey, greeting);
+  }
+
+  // 1.1. DYNAMIC ROUTE COMBINER & RANDOM ITINERARY GENERATOR
   // Ghép lộ tuyến thông minh và đưa ra lộ tuyến phù hợp nhất khi người dùng muốn ghép các lịch trình ngẫu nhiên cho số lượng người ngẫu nhiên
   if (checkIsRouteCombinerIntent(lower)) {
     const combinedRouteResult = handleDynamicRouteCombiner(trimmed, survey, userName);

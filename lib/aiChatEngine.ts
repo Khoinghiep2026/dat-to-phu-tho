@@ -6,7 +6,11 @@ import {
   getOfficialLongCocXuanSonItinerary,
   type GeneratedItinerary,
 } from "./guidePlanner";
-import { handleSmartKnowledgeQuery } from "./aiSmartKnowledge";
+import {
+  handleSmartKnowledgeQuery,
+  isAskingOfficialLongCocXuanSonTour,
+  buildOfficialLongCocXuanSonResponse,
+} from "./aiSmartKnowledge";
 
 export const DISTRICT_TO_ANCHOR_MAP: Record<string, string> = {
   // Phú Thọ (13 huyện/thị/thành)
@@ -1333,45 +1337,8 @@ export function processAiMessage(
   }
 
   // 2.2. Check if user is asking for the Long Coc - Xuan Son tour
-  const isAskingLongCocTour =
-    (lower.includes("long cốc") && (lower.includes("xuân sơn") || lower.includes("thanh sơn") || lower.includes("tân sơn"))) ||
-    lower.includes("thuyết minh long cốc") ||
-    lower.includes("long cốc - xuân sơn") ||
-    lower.includes("long coc - xuan son");
-
-  if (isAskingLongCocTour) {
-    const longCocItinerary = getOfficialLongCocXuanSonItinerary();
-    return {
-      text:
-        `Dạ, em đã nạp **Lịch trình Tour sinh thái Đồi chè Long Cốc – Vườn Quốc Gia Xuân Sơn (2N1Đ)** kèm **hệ thống thuyết minh Audio HD theo từng điểm dừng** theo đúng hồ sơ thuyết minh cho bạn rồi ạ!\n\n` +
-        `📋 **Tóm tắt hành trình khám phá Kỳ quan Đất Tổ:**\n` +
-        `• **Ngày 1 (Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn):**\n` +
-        `   - 06:30 – 08:30: Khởi hành từ TP. Việt Trì đi Tân Sơn qua QL32 & cung đường chè\n` +
-        `   - 08:30 – 11:00: Check-in & ngắm ốc đảo chè bạt ngàn tại Đồi chè Long Cốc\n` +
-        `   - 11:30 – 13:00: Ăn trưa đặc sản vùng cao (gà nhiều cựa, xôi ngũ sắc) tại Bản Dù\n` +
-        `   - 13:30 – 16:30: Trekking rừng nguyên sinh & thám hiểm Hang Sơn Dương / Hang Na\n` +
-        `   - 17:00 – 18:30: Check-in Homestay bản Dù / bản Cỏi, trải nghiệm đời sống người Dao, Mường\n` +
-        `   - 19:00 – 21:00: Thưởng thức bữa tối ẩm thực Mường, giao lưu lửa trại & múa sạp\n\n` +
-        `• **Ngày 2 (Xuân Sơn – Thác Tiên – Về TP. Việt Trì):**\n` +
-        `   - 07:00 – 08:00: Ăn sáng nông sản bản địa & ngắm sương mù thung lũng\n` +
-        `   - 08:30 – 11:00: Check-in Thác Ngọc, Thác Tiên, tắm suối mát & chụp ảnh lưu niệm\n` +
-        `   - 11:30 – 12:45: Ăn trưa tại Homestay Xuân Sơn (lợn cắp nách, rau dớn rừng)\n` +
-        `   - 13:30 – 16:00: Mua sắm đặc sản (chè Shan Tuyết, mật ong rừng, măng khô) & khởi hành về lại TP. Việt Trì\n\n` +
-        `🎧 Bạn có thể **bấm nghe thuyết minh riêng cho từng điểm** (Đồi chè Long Cốc, Rừng nguyên sinh Xuân Sơn, Hang động, Thác Tiên...) trực tiếp trên các thẻ lịch trình bên dưới:`,
-      itinerary: longCocItinerary,
-      options: [
-        { label: "🍵 Thuyết minh Đồi chè Long Cốc", value: "audio_long_coc", icon: "🎧" },
-        { label: "🌲 Thuyết minh VQG Xuân Sơn", value: "audio_xuan_son", icon: "🎧" },
-        { label: "🚗 Xem lộ trình Google Maps", value: "xem_ban_do_long_coc", icon: "🗺️" },
-      ],
-      updatedSurvey: {
-        ...currentSurvey,
-        durationDays: 2,
-        transport: "Xe ô tô",
-        anchorPlaceId: "doi-che-long-coc",
-        district: "Tân Sơn",
-      },
-    };
+  if (isAskingOfficialLongCocXuanSonTour(trimmed)) {
+    return buildOfficialLongCocXuanSonResponse(currentSurvey, userName ? `Chào **${userName}**! ` : "Dạ, ");
   }
 
 
