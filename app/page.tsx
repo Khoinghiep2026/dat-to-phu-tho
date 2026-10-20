@@ -4737,52 +4737,87 @@ export default function Home() {
 
     lastPlayedAudioRef.current = { textVi, textEn, onStateChange, placeId };
 
-    // For Vietnamese: ALWAYS use the real recorded female voice ("giong mau") as requested by user
+    // For Vietnamese:
+    // 1. If this stage/place has its own distinct audio recording, play that stage's audio file!
+    // 2. If it is specifically a sample voice request, play /audio/giong_mau.m4a.
+    // 3. Otherwise (unrecorded places/addresses), speak the place's actual content with the female voice via SpeechSynthesis!
     if (audioLang === "vi") {
-      const primaryUrl = "/audio/giong_mau.m4a";
-      const fallbackUrl = "/audio/giong_mau.wav";
-
-      try {
-        if (placeId) setSpeechPlaceId(placeId);
-        setAudioState("playing");
-        setAudioGuidePlaying(true);
-        onStateChange?.(true);
-
-        const audio = new Audio(primaryUrl);
-        audio.volume = audioVolumeRef.current;
-        audio.playbackRate = audioRateRef.current;
-        htmlAudioRef.current = audio;
-
-        const onFinished = () => {
-          if (htmlAudioRef.current === audio) {
-            htmlAudioRef.current = null;
+      let specificAudioUrl: string | null = null;
+      if (placeId) {
+        if (placeId === "sample-voice") {
+          specificAudioUrl = "/audio/giong_mau.m4a";
+        } else if (TOUR_AUDIO_GUIDES?.tour2n1d?.[placeId]?.audioFile) {
+          specificAudioUrl = TOUR_AUDIO_GUIDES.tour2n1d[placeId].audioFile;
+        } else if (TOUR_AUDIO_GUIDES?.tourLongCocXuanSon?.[placeId]?.audioFile) {
+          specificAudioUrl = TOUR_AUDIO_GUIDES.tourLongCocXuanSon[placeId].audioFile;
+        } else {
+          const aliasMap: Record<string, string> = {
+            "den-hung": "/audio/tours/tour-2n1d/03_den_hung_cong_chinh.mp3",
+            "khu-di-tich-lich-su-den-hung": "/audio/tours/tour-2n1d/03_den_hung_cong_chinh.mp3",
+            "den-ha": "/audio/tours/tour-2n1d/04_den_ha.mp3",
+            "chua-thien-quang": "/audio/tours/tour-2n1d/05_chua_thien_quang.mp3",
+            "den-trung": "/audio/tours/tour-2n1d/06_den_trung.mp3",
+            "den-thuong": "/audio/tours/tour-2n1d/07_den_thuong.mp3",
+            "lang-hung-vuong": "/audio/tours/tour-2n1d/08_lang_hung_vuong.mp3",
+            "den-gieng": "/audio/tours/tour-2n1d/09_den_gieng.mp3",
+            "bao-tang-hung-vuong": "/audio/tours/tour-2n1d/10_bao_tang_hung_vuong.mp3",
+            "khoang-nong-thanh-thuy": "/audio/tours/tour-2n1d/12_lynn_times_thanh_thuy.mp3",
+            "lynn-times-thanh-thuy": "/audio/tours/tour-2n1d/12_lynn_times_thanh_thuy.mp3",
+            "doi-che-long-coc": "/audio/tours/tour-longcoc-xuanson/02_doi_che_long_coc.mp3",
+            "long-coc": "/audio/tours/tour-longcoc-xuanson/02_doi_che_long_coc.mp3",
+            "vuon-quoc-gia-xuan-son": "/audio/tours/tour-longcoc-xuanson/06_tham_quan_vqg_xuan_son.mp3",
+            "vqg-xuan-son": "/audio/tours/tour-longcoc-xuanson/06_tham_quan_vqg_xuan_son.mp3",
+            "xuan-son": "/audio/tours/tour-longcoc-xuanson/06_tham_quan_vqg_xuan_son.mp3",
+            "quang-truong-tam-dao": "/audio/tours/tour-2n1d/14_quang_truong_tam_dao.mp3",
+            "nha-tho-da-tam-dao": "/audio/tours/tour-2n1d/15_nha_tho_da_tam_dao.mp3",
+            "tam-dao-nha-tho": "/audio/tours/tour-2n1d/15_nha_tho_da_tam_dao.mp3",
+            "tam-dao-nui": "/audio/tours/tour-2n1d/16_nha_hang_tam_dao_nui.mp3",
+            "cong-troi-tam-dao": "/audio/tours/tour-2n1d/17_cong_troi_tam_dao.mp3",
+            "tam-dao-cong-troi": "/audio/tours/tour-2n1d/17_cong_troi_tam_dao.mp3",
+            "tam-dao": "/audio/tours/tour-2n1d/18_tam_dao_ket_thuc.mp3",
+            "viet-tri": "/audio/tours/tour-2n1d/01_khoi_hanh_viet_tri.mp3",
+            "mai-anh": "/audio/tours/tour-2n1d/02_an_sang_mai_anh.mp3",
+            "giang-lan": "/audio/tours/tour-2n1d/11_nha_hang_giang_lan.mp3",
+            "tinh-hoa-bac-bo": "/audio/tours/tour-2n1d/13_tinh_hoa_bac_bo.mp3",
+            "homestay-tony-luan": "/audio/tours/tour-longcoc-xuanson/03_an_sang_tony_luan.mp3",
+            "nha-hang-the-nhe-1": "/audio/tours/tour-longcoc-xuanson/07_an_trua_the_nhe.mp3",
+            "ban-du": "/audio/tours/tour-longcoc-xuanson/08_ban_du_van_hoa.mp3",
+          };
+          if (aliasMap[placeId]) {
+            specificAudioUrl = aliasMap[placeId];
           }
-          setSpeechPlaceId(null);
-          setAudioState("idle");
-          setAudioGuidePlaying(false);
-          onStateChange?.(false);
-        };
+        }
+      }
 
-        const tryFallback = () => {
-          const fb = new Audio(fallbackUrl);
-          fb.volume = audioVolumeRef.current;
-          fb.playbackRate = audioRateRef.current;
-          htmlAudioRef.current = fb;
-          fb.onended = onFinished;
-          fb.onerror = onFinished;
-          fb.play().catch(onFinished);
-        };
+      if (specificAudioUrl) {
+        try {
+          if (placeId) setSpeechPlaceId(placeId);
+          setAudioState("playing");
+          setAudioGuidePlaying(true);
+          onStateChange?.(true);
 
-        audio.onended = onFinished;
-        audio.onerror = tryFallback;
-        await audio.play().catch(tryFallback);
-        return;
-      } catch (err) {
-        console.warn("Failed to play female sample audio:", err);
-        setAudioState("idle");
-        setAudioGuidePlaying(false);
-        onStateChange?.(false);
-        return;
+          const audio = new Audio(specificAudioUrl);
+          audio.volume = audioVolumeRef.current;
+          audio.playbackRate = audioRateRef.current;
+          htmlAudioRef.current = audio;
+
+          const onFinished = () => {
+            if (htmlAudioRef.current === audio) {
+              htmlAudioRef.current = null;
+            }
+            setSpeechPlaceId(null);
+            setAudioState("idle");
+            setAudioGuidePlaying(false);
+            onStateChange?.(false);
+          };
+
+          audio.onended = onFinished;
+          audio.onerror = onFinished;
+          await audio.play().catch(onFinished);
+          return;
+        } catch (err) {
+          console.warn("Failed to play stage audio:", err);
+        }
       }
     }
 

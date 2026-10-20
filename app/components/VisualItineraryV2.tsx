@@ -504,25 +504,11 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
     stopAllAudio();
     stopInternalAudio();
 
-    {
-      const primaryUrl = "/audio/giong_mau.m4a";
-      const fallbackUrl = "/audio/giong_mau.wav";
-      const audio = new Audio(primaryUrl);
+    if (slot.audioUrl) {
+      const audio = new Audio(slot.audioUrl);
       internalAudioRef.current = audio;
       audio.volume = audioVolume;
       audio.playbackRate = audioRate;
-
-      const tryFallback = () => {
-        const fb = new Audio(fallbackUrl);
-        internalAudioRef.current = fb;
-        fb.volume = audioVolume;
-        fb.playbackRate = audioRate;
-        fb.ontimeupdate = audio.ontimeupdate;
-        fb.onloadedmetadata = audio.onloadedmetadata;
-        fb.onended = () => stopInternalAudio();
-        fb.onerror = () => stopInternalAudio();
-        fb.play().catch(() => stopInternalAudio());
-      };
 
       audio.ontimeupdate = () => {
         if (audio.duration && !isNaN(audio.duration)) {
@@ -546,10 +532,15 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
         stopInternalAudio();
       };
 
-      audio.onerror = tryFallback;
+      audio.onerror = () => {
+        stopInternalAudio();
+        fallbackTTS(slot);
+      };
 
       setActivePlayingSlotId(slotIdKey);
-      audio.play().catch(tryFallback);
+      audio.play().catch(() => {
+        fallbackTTS(slot);
+      });
       return;
     }
 
