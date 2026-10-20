@@ -3025,10 +3025,10 @@ export const TRAVEL_CHALLENGE_REWARDS: TravelReward[] = [
 
 export const OFFICIAL_SAMPLE_LONG_COC_XUAN_SON = [
   {
-    time: "05:30 – 07:00",
+    time: "03:00 – 05:00",
     title: "Khởi hành từ trung tâm TP. Việt Trì",
-    subtitle: "Lái xe theo QL32 → ĐT316 (~70 km) đến ốc đảo chè Long Cốc đón bình minh",
-    tag: "Khởi hành sớm",
+    subtitle: "Xuất phát sớm lúc 03:00 theo QL32 → ĐT316 (~70 km) đến ốc đảo chè Long Cốc kịp đón bình minh & săn mây lúc 05:00",
+    tag: "Khởi hành sớm 03:00",
     cost: "Miễn phí",
     image: "/images/places/viet-tri.jpg",
   },
@@ -3170,7 +3170,7 @@ export default function Home() {
   const [searchFocused, setSearchFocused] = useState(false);
   const [visibleCount, setVisibleCount] = useState(8);
   // Hero V2 States matching Image 1
-  const [heroSelectedMonth, setHeroSelectedMonth] = useState<number>(9);
+  const [heroSelectedMonth, setHeroSelectedMonth] = useState<number>(() => new Date().getMonth() + 1);
   const [heroMonthDropdownOpen, setHeroMonthDropdownOpen] = useState<boolean>(false);
   const [heroBgImage, setHeroBgImage] = useState<string>("/images/hero/hero-river-valley.jpg");
   const [serverResultIds, setServerResultIds] = useState<string[] | null>(null);
@@ -3348,6 +3348,7 @@ export default function Home() {
     if (audioLang === "vi") {
       const aiVoices = [
         { id: "ai-female-north", label: "🌸 Giọng AI Nữ Hà Nội (Chuẩn miền Bắc - Êm ái)" },
+        { id: "ai-female-sample", label: "🎙️ Giọng bạn Nữ Đất Tổ (Mẫu thu âm người thật)" },
         { id: "ai-male-north", label: "👔 Giọng AI Nam Hà Nội (Chuẩn miền Bắc - Trầm ấm)" },
       ];
       const browserVoices = availableVoices
@@ -6591,7 +6592,7 @@ export default function Home() {
                             showToast(`Đã chọn Tháng ${m} · Khám phá những điểm đến lý tưởng nhất mùa này!`);
                           }}
                         >
-                          Tháng {m} {m === 9 ? "🍁 (Hiện tại)" : m === 3 || m === 4 ? "🏮 (Lễ hội Đền Hùng)" : ""}
+                          Tháng {m} {m === (new Date().getMonth() + 1) ? "🍁 (Hiện tại)" : m === 3 || m === 4 ? "🏮 (Lễ hội Đền Hùng)" : ""}
                         </button>
                       ))}
                     </div>

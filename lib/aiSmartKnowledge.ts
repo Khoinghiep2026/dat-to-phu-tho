@@ -726,9 +726,9 @@ export function buildOfficialLongCocXuanSonResponse(
     `Lịch trình được thiết kế khoa học, tối ưu thời gian di chuyển, ưu tiên khung giờ vàng săn mây và đón bình minh tại Long Cốc, đồng thời bố trí các điểm ăn sáng tại **Homestay Tony Luận (Xóm Bông 1)**, ăn trưa ẩm thực miền núi tại **Nhà hàng Thế Nhé 1 (Bản Dù)** và khám phá văn hóa bản địa trọn vẹn nhất.\n\n` +
     `---\n\n` +
     `📋 **LỘ TUYẾN 1 NGÀY CHUẨN XÁC: VIỆT TRÌ – LONG CỐC – VQG XUÂN SƠN**\n` +
-    `*(Khởi hành: 04:30 | Kết thúc: 16:30 | Tổng cự ly: ~180 km khứ hồi | Thời gian lái xe: ~4 giờ)*\n\n` +
-    `📍 **1. 04:30 – 05:00 | Chặng 1: Khởi hành từ Việt Trì**\n` +
-    `• **Lộ trình:** Đoàn tập trung tại TP. Việt Trì lúc 04:30 sáng, xuất phát sớm theo tuyến Quốc lộ 32 qua ngã ba Thanh Sơn, rẽ vào ĐT316 hướng về xã Long Cốc, huyện Tân Sơn (~70 km, 1 giờ 30 phút lái xe).\n` +
+    `*(Khởi hành: 03:00 | Kết thúc: 16:30 | Tổng cự ly: ~180 km khứ hồi | Thời gian lái xe: ~4 giờ)*\n\n` +
+    `📍 **1. 03:00 – 05:00 | Chặng 1: Khởi hành từ Việt Trì**\n` +
+    `• **Lộ trình:** Đoàn tập trung tại TP. Việt Trì lúc 03:00 sáng, xuất phát sớm theo tuyến Quốc lộ 32 qua ngã ba Thanh Sơn, rẽ vào ĐT316 hướng về xã Long Cốc, huyện Tân Sơn (~70 km, khoảng 1 giờ 30 phút đến 2 giờ lái xe) để kịp đón bình minh và săn biển mây bồng bềnh lúc 05:00.\n` +
     `• **Thuyết minh Trợ lý:** Trợ lý Du lịch Đất Tổ mở đầu hành trình giới thiệu khái quát về cảnh quan, con người và những giá trị văn hóa của quê hương Đất Tổ. Khởi hành sớm lúc bình minh là điều kiện tiên quyết để kịp bắt trọn thời khắc sương mai và biển mây bồng bềnh kỳ ảo.\n\n` +
     `📍 **2. 05:00 – 07:00 | Chặng 2: Tham quan Đồi chè Long Cốc (Săn mây & Đón bình minh)**\n` +
     `• **Địa điểm:** Đồi chè Long Cốc, xã Long Cốc, huyện Tân Sơn (tọa độ ngắm mây đẹp nhất tại đồi Đội 3 hoặc đồi Cầu Mới).\n` +
@@ -777,6 +777,7 @@ export function buildOfficialLongCocXuanSonResponse(
     { label: "👉 Mở Toàn Bộ Lịch Trình Trên Bản Đồ GPS", value: "view_trip_now", icon: "🗺️" },
     { label: "💾 Lưu vào Lịch trình của tôi", value: "save_trip_now", icon: "⭐" },
     { label: "🎙️ Nghe Audio Thuyết Minh Long Cốc", value: "audio_long_coc", icon: "🎙️" },
+    { label: "🎙️ Nghe Giọng Bạn Nữ Thuyết Minh", value: "play_sample_voice", icon: "🎧" },
     { label: "🍲 Quán ăn & Đặc sản Tân Sơn", value: "food_district-tan-son", icon: "🥢" },
   ];
 

@@ -1408,7 +1408,7 @@ export function getOfficialLongCocXuanSonItinerary(lang: string = "vi", userLoca
   const day1Slots: ItinerarySlot[] = [
     {
       period: "Sáng",
-      timeSlot: "04:30 – 05:00",
+      timeSlot: "03:00 – 05:00",
       title: userLocation
         ? `Khởi hành từ vị trí của bạn → Đồi chè Long Cốc (~${distFromUser} km)`
         : "Khởi hành TP. Việt Trì → Đồi chè Long Cốc (~70 km)",
@@ -1416,10 +1416,10 @@ export function getOfficialLongCocXuanSonItinerary(lang: string = "vi", userLoca
       image: "/images/places/long-coc.jpg",
       activity: userLocation
         ? `Đoàn tập trung, xuất phát sớm từ vị trí thiết bị (${userLocation.label || "vị trí của bạn"}), di chuyển theo Quốc lộ 32 và Tỉnh lộ 316 hướng về huyện Tân Sơn để kịp đón sương sớm và biển mây bồng bềnh tại đồi chè.`
-        : "Đoàn tập trung tại TP. Việt Trì lúc 04:30, xuất phát sớm theo tuyến QL32 qua Thanh Sơn, rẽ vào ĐT316 hướng về xã Long Cốc, huyện Tân Sơn (~70 km, 1 giờ 30 phút lái xe) để kịp đón bình minh và săn mây sớm.",
+        : "Đoàn tập trung tại TP. Việt Trì lúc 03:00 sáng, xuất phát sớm theo tuyến QL32 qua Thanh Sơn, rẽ vào ĐT316 hướng về xã Long Cốc, huyện Tân Sơn (~70 km, khoảng 1h30 – 2 giờ lái xe) để kịp đón bình minh và săn mây sớm lúc 05:00.",
       transportAdvice: "Di chuyển bằng ô tô riêng hoặc xe máy. Đường đồi núi quanh co nhưng đã trải nhựa êm thuận.",
       travelMinutes: userMorningMinutes,
-      highlightNote: "Khởi hành sớm đón bình minh & săn mây ốc đảo chè",
+      highlightNote: "Khởi hành sớm 03:00 đón bình minh & săn mây ốc đảo chè",
       estimatedCostPerPerson: 0,
       audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-khoi-hanh"]?.audioFile,
       audioDuration: "00:28",
@@ -1589,7 +1589,7 @@ export function getOfficialLongCocXuanSonItinerary(lang: string = "vi", userLoca
       dayNumber: 1,
       dateLabel: lang === "en" ? "Day 1" : "Ngày 1",
       dayTitle: "Khám phá Ốc Đảo Chè Long Cốc & Đại Ngàn VQG Xuân Sơn",
-      daySummary: "Khởi hành sớm từ Việt Trì lúc 04:30, săn mây và đón bình minh trên đồi chè bát úp Long Cốc (05:00 – 07:00), ăn sáng tại Homestay Tony Luận (Xóm Bông 1). Tiếp tục chụp ảnh nương chè rồi di chuyển sang VQG Xuân Sơn tham quan rừng nguyên sinh trên núi đá vôi, hang động tự nhiên. Dùng bữa trưa tại Nhà hàng Thế Nhé 1 (Bản Dù), khám phá văn hóa Dao Tiền – Mường trước khi trở về lúc 14:30 – 16:30.",
+      daySummary: "Khởi hành sớm từ Việt Trì lúc 03:00 sáng, săn mây và đón bình minh trên đồi chè bát úp Long Cốc (05:00 – 07:00), ăn sáng tại Homestay Tony Luận (Xóm Bông 1). Tiếp tục chụp ảnh nương chè rồi di chuyển sang VQG Xuân Sơn tham quan rừng nguyên sinh trên núi đá vôi, hang động tự nhiên. Dùng bữa trưa tại Nhà hàng Thế Nhé 1 (Bản Dù), khám phá văn hóa Dao Tiền – Mường trước khi trở về lúc 14:30 – 16:30.",
       slots: day1Slots,
       dayDistanceKm: 180,
     },

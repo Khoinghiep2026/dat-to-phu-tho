@@ -92,7 +92,7 @@ export default function AiChatbotWidget({
     };
   }, []);
 
-  const togglePlayVoice = (msgId: string, audioUrl = `${basePath}/audio/giong_mau.m4a`) => {
+  const togglePlayVoice = (msgId: string, audioUrl?: string) => {
     if (playingVoiceId === msgId) {
       if (voiceAudioRef.current) {
         voiceAudioRef.current.pause();
@@ -107,18 +107,32 @@ export default function AiChatbotWidget({
       voiceAudioRef.current = null;
     }
 
-    const audio = new Audio(audioUrl);
+    const primaryUrl = audioUrl || `${basePath}/audio/giong_mau.m4a`;
+    const fallbackUrl = `${basePath}/audio/giong_mau.wav`;
+    const audio = new Audio(primaryUrl);
     voiceAudioRef.current = audio;
     setPlayingVoiceId(msgId);
-    audio.play().catch(() => setPlayingVoiceId(null));
+
+    const tryFallback = () => {
+      const fb = new Audio(fallbackUrl);
+      voiceAudioRef.current = fb;
+      fb.play().catch(() => setPlayingVoiceId(null));
+      fb.onended = () => {
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      };
+      fb.onerror = () => {
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      };
+    };
+
+    audio.play().catch(tryFallback);
     audio.onended = () => {
       setPlayingVoiceId(null);
       voiceAudioRef.current = null;
     };
-    audio.onerror = () => {
-      setPlayingVoiceId(null);
-      voiceAudioRef.current = null;
-    };
+    audio.onerror = tryFallback;
   };
 
   // Stop generation handler (allows user to immediately finish streaming)
@@ -674,6 +688,11 @@ export default function AiChatbotWidget({
       return;
     }
 
+    if (value === "play_sample_voice") {
+      togglePlayVoice(`sample-${Date.now()}`);
+      return;
+    }
+
     if (value.startsWith("audio_")) {
       handleProcessInput(`Thuyết minh ${label.replace("🎧 Thuyết minh Audio", "").trim()}`);
       return;
@@ -1099,7 +1118,7 @@ export default function AiChatbotWidget({
                       </div>
                     )}
                     {/* AUDIO NARRATION PILL (Sample Voice M4A) */}
-                    {msg.sender === "ai" && !msg.isStreaming && (msg.itinerary || msg.text.includes("Lịch trình") || msg.text.includes("thuyết minh") || msg.text.includes("Phương án") || msg.text.includes("phương án")) && (
+                    {msg.sender === "ai" && !msg.isStreaming && (msg.itinerary || msg.text.includes("Lịch trình") || msg.text.includes("LỘ TUYẾN") || msg.text.includes("thuyết minh") || msg.text.includes("Phương án") || msg.text.includes("phương án") || msg.text.includes("Long Cốc") || msg.text.includes("Xuân Sơn")) && (
                       <div className="ai-voice-badge-row">
                         <button
                           type="button"
@@ -1108,7 +1127,7 @@ export default function AiChatbotWidget({
                           title="Bấm để nghe thuyết minh giọng đọc mẫu"
                         >
                           <span className="ai-voice-icon">{playingVoiceId === msg.id ? "⏸️" : "🎙️"}</span>
-                          <span>{playingVoiceId === msg.id ? "Đang phát thuyết minh (Bấm để tạm dừng)" : "Nghe thuyết minh giọng MC Nữ"}</span>
+                          <span>{playingVoiceId === msg.id ? "Đang phát giọng bạn Nữ (Bấm để dừng)" : "🎙️ Nghe giọng bạn Nữ thuyết minh"}</span>
                           {playingVoiceId === msg.id && (
                             <span className="ai-voice-wave">
                               <span /><span /><span />
