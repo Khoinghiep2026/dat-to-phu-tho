@@ -13,6 +13,7 @@ export type AiChatbotWidgetProps = {
     avatar?: string;
     role?: string;
   } | null;
+  userPosition?: { lat: number; lng: number } | null;
   onOpenAuthModal?: () => void;
   onApplyItinerary: (itinerary: GeneratedItinerary, params?: {
     days: number;
@@ -33,6 +34,7 @@ type ChatMessage = {
   timestamp: string;
   options?: Array<{ label: string; value: string; icon?: string }>;
   itinerary?: GeneratedItinerary;
+  isStreaming?: boolean;
 };
 
 const initialSurveyState: AiSurveyState = {
@@ -50,6 +52,7 @@ const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 export default function AiChatbotWidget({
   authUser,
+  userPosition,
   onOpenAuthModal,
   onApplyItinerary,
   onSaveItinerary,
@@ -59,11 +62,84 @@ export default function AiChatbotWidget({
   const [isOpen, setIsOpen] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [isThinking, setIsThinking] = useState(false);
+  const [thinkingStage, setThinkingStage] = useState<string>("Trợ lý AI đang suy nghĩ...");
+  const [isStreaming, setIsStreaming] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [survey, setSurvey] = useState<AiSurveyState>(initialSurveyState);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevAuthUserIdRef = useRef<string | null>(null);
+  const streamingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const thinkingIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const currentStreamingMsgIdRef = useRef<string | null>(null);
+  const currentFullTextRef = useRef<string>("");
+
+  // Clean up timers & audio on unmount
+  useEffect(() => {
+    return () => {
+      if (streamingTimeoutRef.current) {
+        clearTimeout(streamingTimeoutRef.current);
+      }
+      if (thinkingIntervalRef.current) {
+        clearInterval(thinkingIntervalRef.current);
+      }
+      if (voiceAudioRef.current) {
+        voiceAudioRef.current.pause();
+        voiceAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  const togglePlayVoice = (msgId: string, audioUrl = `${basePath}/audio/giong_mau.m4a`) => {
+    if (playingVoiceId === msgId) {
+      if (voiceAudioRef.current) {
+        voiceAudioRef.current.pause();
+        voiceAudioRef.current = null;
+      }
+      setPlayingVoiceId(null);
+      return;
+    }
+
+    if (voiceAudioRef.current) {
+      voiceAudioRef.current.pause();
+      voiceAudioRef.current = null;
+    }
+
+    const audio = new Audio(audioUrl);
+    voiceAudioRef.current = audio;
+    setPlayingVoiceId(msgId);
+    audio.play().catch(() => setPlayingVoiceId(null));
+    audio.onended = () => {
+      setPlayingVoiceId(null);
+      voiceAudioRef.current = null;
+    };
+    audio.onerror = () => {
+      setPlayingVoiceId(null);
+      voiceAudioRef.current = null;
+    };
+  };
+
+  // Stop generation handler (allows user to immediately finish streaming)
+  const handleStopGeneration = () => {
+    if (streamingTimeoutRef.current) {
+      clearTimeout(streamingTimeoutRef.current);
+      streamingTimeoutRef.current = null;
+    }
+    const msgId = currentStreamingMsgIdRef.current;
+    const fullText = currentFullTextRef.current;
+    if (msgId) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === msgId ? { ...m, text: fullText || m.text, isStreaming: false } : m
+        )
+      );
+    }
+    setIsStreaming(false);
+    currentStreamingMsgIdRef.current = null;
+    currentFullTextRef.current = "";
+  };
 
   const txt = (dict: { vi: string; en: string; zh?: string; ko?: string; ja?: string }): string => {
     if (currentLang === "en") return dict.en;
@@ -285,32 +361,146 @@ export default function AiChatbotWidget({
   const surveyRef = useRef(survey);
   surveyRef.current = survey;
 
-  // Core Natural Language Processor
+  // Core Natural Language Processor with Smart Streaming Typewriter
   const handleProcessInput = (text: string, overrideSurvey?: AiSurveyState) => {
+    // If a previous stream is still typing, finalize it immediately
+    if (streamingTimeoutRef.current) {
+      clearTimeout(streamingTimeoutRef.current);
+      streamingTimeoutRef.current = null;
+    }
+    if (currentStreamingMsgIdRef.current && currentFullTextRef.current) {
+      const prevId = currentStreamingMsgIdRef.current;
+      const prevText = currentFullTextRef.current;
+      setMessages((prev) =>
+        prev.map((m) => (m.id === prevId ? { ...m, text: prevText, isStreaming: false } : m))
+      );
+    }
+
+    // Realistic multi-stage thinking simulation with enhanced thinking delay (extra 2-3s as requested)
+    const isComplex = /lịch trình|tour|ngày|đêm|kế hoạch|gợi ý|đi đâu|phương án|chi phí|người|xe|ăn gì|tư vấn|du lịch|cuối tuần/i.test(text);
+    const thinkingStages = isComplex
+      ? [
+          "🧠 Trợ lý AI đang đọc và phân tích ngữ cảnh yêu cầu...",
+          "👥 Đang kiểm tra số lượng đoàn, phương tiện di chuyển & mức ngân sách...",
+          "📍 Đang tính toán cự ly km, thời gian lái xe & cung đường tối ưu...",
+          "⏱️ Đang phân bổ thời gian từng buổi & chọn lọc đặc sản bản địa...",
+          "✨ Đang hoàn thiện phương án lịch trình cá nhân hoá tốt nhất cho bạn...",
+        ]
+      : [
+          "🧠 Trợ lý AI đang tra cứu cơ sở dữ liệu du lịch Đất Tổ...",
+          "🔍 Đang đối chiếu thông tin điểm đến & ẩm thực bản địa...",
+          "✨ Đang hoàn thiện câu trả lời chuẩn xác nhất cho bạn...",
+        ];
+
+    setThinkingStage(thinkingStages[0]);
     setIsThinking(true);
+    setIsStreaming(false);
+
+    if (thinkingIntervalRef.current) {
+      clearInterval(thinkingIntervalRef.current);
+    }
+
+    let stageIdx = 0;
+    // Enhanced latency: ~4.6s for complex trip planning, ~3.4s for general queries
+    const stageInterval = isComplex ? 920 : 1100;
+    const totalDelay = isComplex ? 4600 : 3400;
+
+    thinkingIntervalRef.current = setInterval(() => {
+      stageIdx++;
+      if (stageIdx < thinkingStages.length) {
+        setThinkingStage(thinkingStages[stageIdx]);
+      }
+    }, stageInterval);
 
     setTimeout(() => {
-      const activeSurvey = overrideSurvey || surveyRef.current;
+      if (thinkingIntervalRef.current) {
+        clearInterval(thinkingIntervalRef.current);
+        thinkingIntervalRef.current = null;
+      }
+
+      const activeSurvey = { ...(overrideSurvey || surveyRef.current) };
+      if (userPosition && !activeSurvey.userLocation) {
+        activeSurvey.userLocation = {
+          lat: userPosition.lat,
+          lng: userPosition.lng,
+          label: "Vị trí thiết bị của bạn",
+        };
+      }
       const res = processAiMessage(text, activeSurvey, authUser?.name);
       setSurvey(res.updatedSurvey);
       surveyRef.current = res.updatedSurvey;
 
+      const fullText = res.text || "";
+      const msgId = `ai-${Date.now()}`;
+      currentStreamingMsgIdRef.current = msgId;
+      currentFullTextRef.current = fullText;
+
+      setIsThinking(false);
+      setIsStreaming(true);
+
+      // Create initial message with empty text and isStreaming = true
       const aiMsg: ChatMessage = {
-        id: `ai-${Date.now()}`,
+        id: msgId,
         sender: "ai",
-        text: res.text,
+        text: "",
         timestamp: getTimeString(),
         options: res.options,
         itinerary: res.itinerary,
+        isStreaming: true,
       };
 
       setMessages((prev) => [...prev, aiMsg]);
-      setIsThinking(false);
 
-      if (res.itinerary) {
-        showToast?.(`✦ AI đã lên xong lịch trình: ${res.itinerary.title}`);
-      }
-    }, 700);
+      // Smart streaming cadence: adaptive chunking with punctuation pause
+      let currentIndex = 0;
+      const totalLen = fullText.length;
+      const stepSize = totalLen > 1400 ? 5 : totalLen > 700 ? 3 : 2;
+
+      const typeNextChunk = () => {
+        if (currentIndex < totalLen) {
+          currentIndex = Math.min(currentIndex + stepSize, totalLen);
+          const currentSub = fullText.slice(0, currentIndex);
+
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === msgId
+                ? { ...m, text: currentSub, isStreaming: currentIndex < totalLen }
+                : m
+            )
+          );
+
+          // Variable pause at punctuation for natural conversational flow
+          let delay = 16;
+          const lastChar = fullText[currentIndex - 1];
+          if (lastChar === "." || lastChar === "!" || lastChar === "?") {
+            delay = 55;
+          } else if (lastChar === "\n") {
+            delay = 35;
+          } else if (lastChar === "," || lastChar === ";" || lastChar === ":") {
+            delay = 25;
+          }
+
+          streamingTimeoutRef.current = setTimeout(typeNextChunk, delay);
+        } else {
+          // Finished typing all tokens
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === msgId ? { ...m, text: fullText, isStreaming: false } : m
+            )
+          );
+          setIsStreaming(false);
+          currentStreamingMsgIdRef.current = null;
+          currentFullTextRef.current = "";
+          streamingTimeoutRef.current = null;
+
+          if (res.itinerary) {
+            showToast?.(`✦ AI đã lên xong lịch trình: ${res.itinerary.title}`);
+          }
+        }
+      };
+
+      streamingTimeoutRef.current = setTimeout(typeNextChunk, 30);
+    }, totalDelay);
   };
 
   // Handle user selecting an option chip
@@ -388,6 +578,114 @@ export default function AiChatbotWidget({
 
     if (value === "ask_foods") {
       handleProcessInput("Đặc sản Phú Thọ có gì ngon?");
+      return;
+    }
+
+    if (value === "tour_2n1d") {
+      handleProcessInput("lịch trình du lịch theo file 2 ngày 1 đêm");
+      return;
+    }
+
+    if (value === "tour_long_coc") {
+      handleProcessInput("lịch trình long cốc xuân sơn");
+      return;
+    }
+
+    if (value === "hoi_mua_du_lich") {
+      handleProcessInput("du lịch phú thọ mùa nào đẹp nhất");
+      return;
+    }
+
+    if (value === "hoi_gia_ve") {
+      handleProcessInput("bảng giá vé tham quan phú thọ");
+      return;
+    }
+
+    if (value === "clarify_plan_family_car") {
+      const updatedSurvey: AiSurveyState = {
+        ...survey,
+        travelers: 4,
+        transport: "Ô tô riêng",
+        budget: "Tiêu chuẩn",
+        durationDays: survey.durationDays || 2,
+        durationNights: (survey.durationDays || 2) > 1 ? (survey.durationDays || 2) - 1 : 0,
+        anchorPlaceId: survey.anchorPlaceId || "den-hung",
+        destinationText: survey.destinationText || "Đền Hùng – Thanh Thủy",
+      };
+      setSurvey(updatedSurvey);
+      handleProcessInput("Lên lịch trình 2 ngày 1 đêm cho gia đình 4 người đi bằng ô tô riêng với ngân sách tiêu chuẩn", updatedSurvey);
+      return;
+    }
+
+    if (value === "clarify_plan_couple_resort") {
+      const updatedSurvey: AiSurveyState = {
+        ...survey,
+        travelers: 2,
+        transport: "Ô tô riêng",
+        budget: "Cao cấp / Nghỉ dưỡng",
+        durationDays: survey.durationDays || 2,
+        durationNights: (survey.durationDays || 2) > 1 ? (survey.durationDays || 2) - 1 : 0,
+        anchorPlaceId: survey.anchorPlaceId || "thanh-thuy",
+        destinationText: survey.destinationText || "Khoáng nóng Lynn Times Thanh Thủy",
+      };
+      setSurvey(updatedSurvey);
+      handleProcessInput("Lên lịch trình 2 ngày 1 đêm cho cặp đôi 2 người đi ô tô riêng nghỉ dưỡng Onsen khoáng nóng", updatedSurvey);
+      return;
+    }
+
+    if (value === "clarify_plan_friends_bike") {
+      const updatedSurvey: AiSurveyState = {
+        ...survey,
+        travelers: 4,
+        transport: "Xe máy",
+        budget: "Tiết kiệm",
+        durationDays: survey.durationDays || 2,
+        durationNights: (survey.durationDays || 2) > 1 ? (survey.durationDays || 2) - 1 : 0,
+        anchorPlaceId: survey.anchorPlaceId || "long-coc",
+        destinationText: survey.destinationText || "Đồi chè Long Cốc – VQG Xuân Sơn",
+      };
+      setSurvey(updatedSurvey);
+      handleProcessInput("Lên lịch trình phượt 2 ngày 1 đêm cho nhóm bạn trẻ đi xe máy tiết kiệm săn mây Long Cốc", updatedSurvey);
+      return;
+    }
+
+    if (value === "clarify_route_hung_thuy") {
+      handleProcessInput("lịch trình du lịch theo file 2 ngày 1 đêm");
+      return;
+    }
+
+    if (value === "clarify_route_long_coc") {
+      handleProcessInput("lịch trình long cốc xuân sơn");
+      return;
+    }
+
+    if (value === "hoi_dac_san_qua") {
+      handleProcessInput("đặc sản phú thọ mua làm quà");
+      return;
+    }
+
+    if (value.startsWith("plan_place_")) {
+      handleProcessInput(`Lên lịch trình khám phá ${label.replace("✨ Lên lịch trình đến", "").trim()}`);
+      return;
+    }
+
+    if (value.startsWith("food_")) {
+      handleProcessInput(`Món ngon và quán ăn đặc sản gần ${label.replace("🥢 Quán ăn ngon gần", "").replace("🥢 Khám phá đặc sản", "").trim()}`);
+      return;
+    }
+
+    if (value.startsWith("audio_")) {
+      handleProcessInput(`Thuyết minh ${label.replace("🎧 Thuyết minh Audio", "").trim()}`);
+      return;
+    }
+
+    if (value === "audio_long_coc") {
+      handleProcessInput("thuyết minh đồi chè long cốc");
+      return;
+    }
+
+    if (value === "audio_xuan_son") {
+      handleProcessInput("thuyết minh vườn quốc gia xuân sơn");
       return;
     }
 
@@ -704,11 +1002,16 @@ export default function AiChatbotWidget({
                           ))}
                         </p>
                       ))}
+                      {msg.isStreaming && (
+                        <span className="ai-typing-cursor" aria-hidden="true">
+                          ▌
+                        </span>
+                      )}
                     </div>
 
-                    {/* ITINERARY RESULT CARD (Generated by AI) */}
-                    {msg.itinerary && (
-                      <div className="ai-itinerary-preview-card">
+                    {/* ITINERARY RESULT CARD (Generated by AI - only shown when stream completes) */}
+                    {!msg.isStreaming && msg.itinerary && (
+                      <div className="ai-itinerary-preview-card ai-fade-in">
                         <div className="ai-itinerary-card__header">
                           <span className="ai-itinerary-card__badge">
                             {txt({
@@ -778,9 +1081,9 @@ export default function AiChatbotWidget({
                       </div>
                     )}
 
-                    {/* INTERACTIVE QUICK REPLY PILLS / OPTIONS */}
-                    {msg.options && msg.options.length > 0 && (
-                      <div className="ai-quick-options">
+                    {/* INTERACTIVE QUICK REPLY PILLS / OPTIONS (Shown when stream completes) */}
+                    {!msg.isStreaming && msg.options && msg.options.length > 0 && (
+                      <div className="ai-quick-options ai-fade-in">
                         {msg.options.map((opt, oIdx) => (
                           <button
                             key={oIdx}
@@ -794,6 +1097,25 @@ export default function AiChatbotWidget({
                         ))}
                       </div>
                     )}
+                    {/* AUDIO NARRATION PILL (Sample Voice M4A) */}
+                    {msg.sender === "ai" && !msg.isStreaming && (msg.itinerary || msg.text.includes("Lịch trình") || msg.text.includes("thuyết minh") || msg.text.includes("Phương án") || msg.text.includes("phương án")) && (
+                      <div className="ai-voice-badge-row">
+                        <button
+                          type="button"
+                          className={`ai-voice-play-pill ${playingVoiceId === msg.id ? "is-playing" : ""}`}
+                          onClick={() => togglePlayVoice(msg.id)}
+                          title="Bấm để nghe thuyết minh giọng đọc mẫu"
+                        >
+                          <span className="ai-voice-icon">{playingVoiceId === msg.id ? "⏸️" : "🎙️"}</span>
+                          <span>{playingVoiceId === msg.id ? "Đang phát thuyết minh (Bấm để tạm dừng)" : "Nghe thuyết minh giọng MC Nữ"}</span>
+                          {playingVoiceId === msg.id && (
+                            <span className="ai-voice-wave">
+                              <span /><span /><span />
+                            </span>
+                          )}
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <span className="ai-bubble-time">{msg.timestamp}</span>
@@ -801,7 +1123,7 @@ export default function AiChatbotWidget({
               </div>
             ))}
 
-            {/* THINKING / TYPING INDICATOR */}
+            {/* THINKING / TYPING INDICATOR WITH MULTI-STAGE REASONING */}
             {isThinking && (
               <div className="ai-message-row ai-message-row--ai">
                 <div className="ai-bubble-avatar">
@@ -817,7 +1139,9 @@ export default function AiChatbotWidget({
                 </div>
                 <div className="ai-bubble-container">
                   <div className="ai-bubble-content ai-thinking-bubble">
-                    <span className="ai-thinking-text">{txt({ vi: "Trợ lý AI đang xử lý & tối ưu lịch trình", en: "AI Assistant is optimizing your itinerary", zh: "AI正在处理并优化行程", ko: "AI 비서가 일정을 최적화하고 있습니다", ja: "AIアシスタントが旅程を最適化中" })}</span>
+                    <div className="ai-thinking-header">
+                      <span className="ai-thinking-text">{thinkingStage}</span>
+                    </div>
                     <div className="ai-typing-dots">
                       <span />
                       <span />
@@ -830,6 +1154,21 @@ export default function AiChatbotWidget({
 
             <div ref={messagesEndRef} />
           </div>
+
+          {/* STOP STREAMING BUTTON */}
+          {isStreaming && (
+            <div className="ai-streaming-bar">
+              <button
+                type="button"
+                className="ai-stop-btn"
+                onClick={handleStopGeneration}
+                title="Dừng tạo và hiển thị toàn bộ nội dung"
+              >
+                <span className="ai-stop-icon">■</span>
+                <span>{txt({ vi: "Dừng tạo / Xem toàn bộ", en: "Stop generating", zh: "停止生成 / 查看全部", ko: "생성 중지 / 전체 보기", ja: "生成を停止 / 全文表示" })}</span>
+              </button>
+            </div>
+          )}
 
           {/* FOOTER INPUT */}
           <form className="ai-chat-input-form" onSubmit={handleSendMessage}>
@@ -845,12 +1184,12 @@ export default function AiChatbotWidget({
               })}
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
-              disabled={isThinking}
+              disabled={isThinking || isStreaming}
             />
             <button
               type="submit"
               className="ai-chat-send-btn"
-              disabled={!inputVal.trim() || isThinking}
+              disabled={!inputVal.trim() || isThinking || isStreaming}
               aria-label="Gửi tin nhắn"
             >
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">

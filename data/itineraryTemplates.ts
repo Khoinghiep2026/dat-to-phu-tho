@@ -38,6 +38,28 @@ export const tourTemplates: TourTemplate[] = [
     ]
   },
   {
+    id: "tour-long-coc-xuan-son-1ngay",
+    title: "Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn (1 Ngày)",
+    durationDays: 1,
+    durationLabel: "1 ngày",
+    region: "Phú Thọ",
+    badge: "Chuẩn thuyết minh có Audio",
+    theme: "Sinh thái & Săn mây",
+    recommendedTransport: "Ô tô riêng / Xe máy",
+    anchorPlaceId: "long-coc",
+    image: "/images/places/long-coc.png",
+    summary: "Hành trình sinh thái chuẩn theo hồ sơ 'Thuyết minh Long Cốc - Xuân Sơn': Khởi hành sớm từ Việt Trì, đón bình minh và săn biển mây tại ốc đảo chè bát úp Long Cốc, ăn sáng Homestay Tony Luận, thưởng thức đặc sản Gà chín cựa nướng tại Nhà hàng Thế Nhé 1 VQG Xuân Sơn, khám phá thác Chín Tầng, hang động và bản Dù người Dao Tiền.",
+    estimatedBudgetPerPerson: "345.000 – 550.000đ",
+    highlights: [
+      "Đón bình minh & săn biển mây ốc đảo chè Long Cốc",
+      "Ăn sáng trà Shan tuyết cổ thụ Homestay Tony Luận",
+      "Thưởng thức mâm cỗ Gà chín cựa nướng Nhà hàng Thế Nhé 1",
+      "Trekking rừng nguyên sinh & Thác Chín Tầng VQG Xuân Sơn",
+      "Khám phá nếp nhà sàn & dệt thổ cẩm Bản Dù",
+      "Trợ lý audio thuyết minh tự động từng chặng điểm đến"
+    ]
+  },
+{
     id: "tour-den-hung-1n",
     title: "Về Cội Nguồn Đất Tổ: Đền Hùng – Làng Cổ Hùng Lô",
     durationDays: 1,

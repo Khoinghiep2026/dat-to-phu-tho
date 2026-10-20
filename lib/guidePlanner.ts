@@ -5,6 +5,7 @@ import {
   getAllDistrictPlaces,
   getDistrictTravelGuide,
 } from "./districtPlaceGenerator";
+import { TOUR_AUDIO_GUIDES } from "@/data/tourAudioGuides";
 
 export type ItinerarySlot = {
   period: "Sáng" | "Trưa" | "Chiều" | "Tối";
@@ -22,6 +23,10 @@ export type ItinerarySlot = {
   estimatedCostPerPerson: number;
   audioScript?: string;
   audioScriptEn?: string;
+  isAutoSuggested?: boolean;
+  audioUrl?: string;
+  audioDuration?: string;
+  stopIndex?: number;
 };
 
 export type ItineraryDay = {
@@ -56,6 +61,8 @@ export type GeneratedItinerary = {
   cautionAdvice: string;
   days: ItineraryDay[];
   googleMapsUrl: string;
+  originName?: string;
+  originCoords?: { lat: number; lng: number };
 };
 
 export type DistrictGuide = {
@@ -202,18 +209,28 @@ export const DISTRICT_TRAVEL_GUIDES: Record<string, DistrictGuide> = {
   },
 };
 
+export type UserLocation = {
+  lat: number;
+  lng: number;
+  label?: string;
+};
+
 export type PlannerOptions = {
   anchorPlaceId?: string;
   selectedPlaceIds?: string[];
+  strictSelectedOnly?: boolean;
   district?: string;
   region?: string;
   durationDays: number;
   durationNights?: number;
   transport: string;
   budget: string;
+  customBudgetTotal?: number;
+  customBudgetPerPerson?: number;
   style: string;
   travelers: number;
   lang?: string;
+  userLocation?: UserLocation;
 };
 
 function haversineDistance(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -231,15 +248,19 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
   const {
     anchorPlaceId,
     selectedPlaceIds = [],
+    strictSelectedOnly = false,
     district,
     region,
     durationDays = 2,
     durationNights,
     transport = "Ô tô riêng",
     budget = "Tiêu chuẩn",
+    customBudgetTotal,
+    customBudgetPerPerson,
     style = "Văn hóa & cội nguồn",
     travelers = 2,
     lang = "vi",
+    userLocation,
   } = options;
 
   // Master place pool combining handcrafted places and all 32 districts' spots
@@ -266,11 +287,13 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
 
   // 1. Xác định danh sách các điểm được người dùng ưu tiên ghép
   const userChosenPlaces: Place[] = [];
+  const chosenPlaceIdSet = new Set<string>();
   if (selectedPlaceIds.length > 0) {
     for (const pid of selectedPlaceIds) {
       const found = allAvailablePlaces.find((p) => p.id === pid);
-      if (found && !userChosenPlaces.some((cp) => cp.id === found.id)) {
+      if (found && !chosenPlaceIdSet.has(found.id)) {
         userChosenPlaces.push(found);
+        chosenPlaceIdSet.add(found.id);
       }
     }
   }
@@ -293,46 +316,57 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
   }
 
   // 2. Gom cụm các điểm đến phù hợp theo cự ly và chủ đề
-  const neededStops = Math.max(durationDays * 2, userChosenPlaces.length);
+  const autoSuggestedIds = new Set<string>();
   const chosenPlaces: Place[] = [...userChosenPlaces];
 
   if (!chosenPlaces.some((p) => p.id === anchor.id)) {
     chosenPlaces.unshift(anchor);
   }
 
-  // Nếu người dùng chọn huyện cụ thể, ưu tiên đưa các điểm tham quan thực tế của huyện đó vào
-  if (targetDistrictInfo && chosenPlaces.length < neededStops) {
-    const distPlaces = getAllPlacesForDistrict(targetDistrictInfo.id);
-    for (const dp of distPlaces) {
-      if (chosenPlaces.length >= neededStops) break;
-      if (!chosenPlaces.some((p) => p.id === dp.id)) {
-        chosenPlaces.push(dp);
+  // CHỈ TỰ ĐỘNG BỔ SUNG ĐIỂM NẾU NGƯỜI DÙNG KHÔNG BẬT "strictSelectedOnly"
+  if (!strictSelectedOnly) {
+    const neededStops = Math.max(durationDays * 2, userChosenPlaces.length);
+
+    // Nếu người dùng chọn huyện cụ thể, ưu tiên đưa các điểm tham quan thực tế của huyện đó vào
+    if (targetDistrictInfo && chosenPlaces.length < neededStops) {
+      const distPlaces = getAllPlacesForDistrict(targetDistrictInfo.id);
+      for (const dp of distPlaces) {
+        if (chosenPlaces.length >= neededStops) break;
+        if (!chosenPlaces.some((p) => p.id === dp.id)) {
+          chosenPlaces.push(dp);
+          if (!chosenPlaceIdSet.has(dp.id)) {
+            autoSuggestedIds.add(dp.id);
+          }
+        }
       }
     }
-  }
 
-  // Nếu vẫn chưa đủ điểm cho số ngày, tự động bổ sung các điểm lân cận
-  if (chosenPlaces.length < neededStops) {
-    const existingIds = new Set(chosenPlaces.map((p) => p.id));
-    const pool = allAvailablePlaces.filter((p) => !existingIds.has(p.id));
+    // Nếu vẫn chưa đủ điểm cho số ngày, tự động bổ sung các điểm lân cận
+    if (chosenPlaces.length < neededStops) {
+      const existingIds = new Set(chosenPlaces.map((p) => p.id));
+      const pool = allAvailablePlaces.filter((p) => !existingIds.has(p.id));
 
-    // Ưu tiên cùng huyện trước, sau đó cùng vùng, sau đó theo cự ly
-    pool.sort((a, b) => {
-      const lastPlace = chosenPlaces[chosenPlaces.length - 1] || anchor;
-      if (district && a.district === district && b.district !== district) return -1;
-      if (district && b.district === district && a.district !== district) return 1;
-      if (targetDistrictInfo && a.district === targetDistrictInfo.name && b.district !== targetDistrictInfo.name) return -1;
-      if (targetDistrictInfo && b.district === targetDistrictInfo.name && a.district !== targetDistrictInfo.name) return 1;
-      if (a.region === lastPlace.region && b.region !== lastPlace.region) return -1;
-      if (b.region === lastPlace.region && a.region !== lastPlace.region) return 1;
-      const distA = haversineDistance(lastPlace.lat, lastPlace.lng, a.lat, a.lng);
-      const distB = haversineDistance(lastPlace.lat, lastPlace.lng, b.lat, b.lng);
-      return distA - distB;
-    });
+      // Ưu tiên cùng huyện trước, sau đó cùng vùng, sau đó theo cự ly
+      pool.sort((a, b) => {
+        const lastPlace = chosenPlaces[chosenPlaces.length - 1] || anchor;
+        if (district && a.district === district && b.district !== district) return -1;
+        if (district && b.district === district && a.district !== district) return 1;
+        if (targetDistrictInfo && a.district === targetDistrictInfo.name && b.district !== targetDistrictInfo.name) return -1;
+        if (targetDistrictInfo && b.district === targetDistrictInfo.name && a.district !== targetDistrictInfo.name) return 1;
+        if (a.region === lastPlace.region && b.region !== lastPlace.region) return -1;
+        if (b.region === lastPlace.region && a.region !== lastPlace.region) return 1;
+        const distA = haversineDistance(lastPlace.lat, lastPlace.lng, a.lat, a.lng);
+        const distB = haversineDistance(lastPlace.lat, lastPlace.lng, b.lat, b.lng);
+        return distA - distB;
+      });
 
-    for (const candidate of pool) {
-      if (chosenPlaces.length >= neededStops) break;
-      chosenPlaces.push(candidate);
+      for (const candidate of pool) {
+        if (chosenPlaces.length >= neededStops) break;
+        chosenPlaces.push(candidate);
+        if (!chosenPlaceIdSet.has(candidate.id)) {
+          autoSuggestedIds.add(candidate.id);
+        }
+      }
     }
   }
 
@@ -346,6 +380,7 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
     const morningPlace = chosenPlaces[dayIdx * 2] || anchor;
     const afternoonPlace = chosenPlaces[dayIdx * 2 + 1] || morningPlace;
 
+    const isFirstDay = dayNum === 1;
     const isLastDay = dayNum === durationDays;
 
     // Khoảng cách di chuyển trong ngày
@@ -355,12 +390,28 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
       afternoonPlace.lat,
       afternoonPlace.lng
     );
-    const dayDistance = Math.round(distBetween + 20); // cộng 20km cự ly trung bình từ điểm xuất phát/quán ăn
+
+    const distFromOrigin = isFirstDay && userLocation
+      ? haversineDistance(userLocation.lat, userLocation.lng, morningPlace.lat, morningPlace.lng)
+      : morningPlace.distanceFromVietTri;
+
+    const returnDistToOrigin = isLastDay && userLocation
+      ? haversineDistance(afternoonPlace.lat, afternoonPlace.lng, userLocation.lat, userLocation.lng)
+      : 0;
+
+    const dayDistance = isFirstDay && userLocation
+      ? Math.round(distFromOrigin + distBetween + (isLastDay ? returnDistToOrigin : 10))
+      : Math.round(distBetween + 20 + (isLastDay && userLocation ? returnDistToOrigin : 0));
     totalDistanceKm += dayDistance;
 
-    const morningMinutes = Math.max(20, Math.round(morningPlace.distanceFromVietTri * 1.5));
+    const morningMinutes = isFirstDay && userLocation
+      ? Math.max(15, Math.round(distFromOrigin * (transport.includes("Xe máy") ? 1.6 : 1.35)))
+      : Math.max(20, Math.round(morningPlace.distanceFromVietTri * 1.5));
     const afternoonMinutes = Math.max(15, Math.round(distBetween * 1.6));
-    totalMinutes += morningMinutes + afternoonMinutes;
+    const returnMinutes = isLastDay && userLocation
+      ? Math.max(15, Math.round(returnDistToOrigin * 1.4))
+      : 0;
+    totalMinutes += morningMinutes + afternoonMinutes + returnMinutes;
 
     // Chọn nhà hàng
     const lunchRestaurant =
@@ -374,6 +425,13 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
       : afternoonPlace.stays[0] || morningPlace.stays[0] || places[0].stays[0];
 
     const slot1Title = (() => {
+      if (isFirstDay && userLocation) {
+        if (lang === "en") return `Depart from your location → ${morningPlace.shortName}`;
+        if (lang === "zh") return `从您的定位出发前往 ${morningPlace.shortName}`;
+        if (lang === "ko") return `현재 위치에서 출발 → ${morningPlace.shortName}`;
+        if (lang === "ja") return `現在地から出発 → ${morningPlace.shortName}`;
+        return `Khởi hành từ vị trí của bạn → ${morningPlace.shortName}`;
+      }
       if (lang === "en") return `Depart & Discover ${morningPlace.shortName}`;
       if (lang === "zh") return `出发前往并探索 ${morningPlace.shortName}`;
       if (lang === "ko") return `출발 및 ${morningPlace.shortName} 탐방`;
@@ -399,6 +457,13 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
 
     const slot4Title = (() => {
       if (isLastDay) {
+        if (userLocation) {
+          if (lang === "en") return `Specialty dinner at ${dinnerRestaurant.name} & Return home`;
+          if (lang === "zh") return `在 ${dinnerRestaurant.name} 享用特色晚餐并启程返程`;
+          if (lang === "ko") return `${dinnerRestaurant.name} 특선 석식 및 귀가`;
+          if (lang === "ja") return `${dinnerRestaurant.name} でディナー＆帰路へ`;
+          return `Bữa tối đặc sản tại ${dinnerRestaurant.name} & Trở về điểm xuất phát`;
+        }
         if (lang === "en") return `Specialty dinner at ${dinnerRestaurant.name} & Tour conclusion`;
         if (lang === "zh") return `在 ${dinnerRestaurant.name} 享用特色晚餐并结束旅程`;
         if (lang === "ko") return `${dinnerRestaurant.name} 특선 석식 및 여정 마무리`;
@@ -420,11 +485,16 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
         title: slot1Title,
         type: "visit",
         place: morningPlace,
-        activity: `Tham quan các điểm nhấn tiêu biểu: ${morningPlace.highlights.slice(0, 2).join(", ")}. Chụp ảnh lưu niệm và tìm hiểu văn hóa lịch sử.`,
-        transportAdvice: `Di chuyển bằng ${transport}. Thời gian di chuyển ước tính ${morningMinutes} phút. ${morningPlace.transportTips?.routeAdvice || "Đi theo chỉ dẫn đường chính, đường đi thuận lợi."}`,
+        activity: isFirstDay && userLocation
+          ? `Xuất phát từ vị trí thiết bị (${userLocation.label || "vị trí của bạn"}), khởi hành đi ${morningPlace.name}. Tham quan các điểm nhấn tiêu biểu: ${morningPlace.highlights.slice(0, 2).join(", ")}. Chụp ảnh lưu niệm và tìm hiểu văn hóa lịch sử.`
+          : `Tham quan các điểm nhấn tiêu biểu: ${morningPlace.highlights.slice(0, 2).join(", ")}. Chụp ảnh lưu niệm và tìm hiểu văn hóa lịch sử.`,
+        transportAdvice: isFirstDay && userLocation
+          ? `Di chuyển bằng ${transport} từ vị trí của bạn (~${Math.round(distFromOrigin)} km, ước tính ${morningMinutes} phút lái xe). ${morningPlace.transportTips?.routeAdvice || "Đi theo lộ trình dẫn đường trực tiếp trên Google Maps."}`
+          : `Di chuyển bằng ${transport}. Thời gian di chuyển ước tính ${morningMinutes} phút. ${morningPlace.transportTips?.routeAdvice || "Đi theo chỉ dẫn đường chính, đường đi thuận lợi."}`,
         travelMinutes: morningMinutes,
         highlightNote: morningPlace.highlights[0] || "Điểm đến biểu tượng",
         estimatedCostPerPerson: morningPlace.price.includes("miễn phí") ? 50000 : 120000,
+        isAutoSuggested: autoSuggestedIds.has(morningPlace.id),
       },
       // BUỔI TRƯA
       {
@@ -451,6 +521,7 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
         travelMinutes: afternoonMinutes,
         highlightNote: afternoonPlace.highlights[1] || afternoonPlace.highlights[0],
         estimatedCostPerPerson: afternoonPlace.price.includes("miễn phí") ? 40000 : 100000,
+        isAutoSuggested: autoSuggestedIds.has(afternoonPlace.id),
       },
       // BUỔI TỐI
       {
@@ -464,7 +535,9 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
           ? `Thưởng thức bữa tối sum vầy với ${dinnerRestaurant.note}. Mua sắm đặc sản làm quà và chuẩn bị lên xe trở về.`
           : `Thưởng thức bữa tối đặc sản tại ${dinnerRestaurant.name}. Sau đó nhận phòng nghỉ ngơi tại ${nightStay?.name}. Dạo bộ tận hưởng không khí buổi tối yên bình.`,
         transportAdvice: isLastDay
-          ? `Ăn tối xong khởi hành trở về bằng ${transport}. Lái xe an toàn và kiểm tra kỹ hành lý.`
+          ? (userLocation
+              ? `Ăn tối xong khởi hành trở về điểm xuất phát ban đầu (${userLocation.label || "vị trí của bạn"}, cự ly ~${Math.round(returnDistToOrigin)} km) bằng ${transport}. Lái xe an toàn và kiểm tra kỹ hành lý.`
+              : `Ăn tối xong khởi hành trở về bằng ${transport}. Lái xe an toàn và kiểm tra kỹ hành lý.`)
           : `Về khách sạn/resort chỉ cách 5–10 phút di chuyển. Nơi nghỉ có lễ tân 24/7 và dịch vụ chu đáo.`,
         travelMinutes: 15,
         highlightNote: isLastDay
@@ -504,11 +577,20 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
   // Ước tính chi phí bám sát tiêu chuẩn ngân sách
   const isBudgetLow = budget.includes("Tiết kiệm");
   const isBudgetHigh = budget.includes("Cao cấp") || budget.includes("Nghỉ dưỡng");
-  const baseCostPerPerson = isBudgetLow
-    ? durationDays * 500000
-    : isBudgetHigh
-    ? durationDays * 1950000
-    : durationDays * 950000;
+  let baseCostPerPerson: number;
+  if (customBudgetPerPerson && customBudgetPerPerson > 0) {
+    baseCostPerPerson = customBudgetPerPerson;
+  } else if (customBudgetTotal && customBudgetTotal > 0 && travelers > 0) {
+    baseCostPerPerson = Math.round(customBudgetTotal / travelers);
+  } else if (transport.includes("Xe máy") && durationDays === 1) {
+    baseCostPerPerson = 280000;
+  } else {
+    baseCostPerPerson = isBudgetLow
+      ? durationDays * 450000
+      : isBudgetHigh
+      ? durationDays * 1950000
+      : durationDays * 950000;
+  }
 
   const totalCost = baseCostPerPerson * travelers;
 
@@ -585,8 +667,17 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
     ? `Hành trình ${durationDays} ngày ${actualNights > 0 ? `${actualNights} đêm` : "(trong ngày)"} khám phá trọn vẹn ${targetDistrictInfo.name} (${targetDistrictInfo.province}) được tối ưu hóa cung đường di chuyển bằng ${transport}. Lịch trình kết nối các danh lam thắng cảnh đặc sắc như ${targetDistrictInfo.attractions.map((a) => a.name.split("(")[0].trim()).join(", ")}, thưởng thức ẩm thực đặc sản ${targetDistrictInfo.culinary.map((c) => c.dish.split("(")[0].trim()).join(", ")} và nghỉ ngơi tại ${targetDistrictInfo.recommendedStay || "khách sạn địa phương chu đáo"}.`
     : `Hành trình ${durationDays} ngày ${actualNights > 0 ? `${actualNights} đêm` : "(trong ngày)"} được thiết kế tối ưu hóa lộ trình di chuyển bằng ${transport}, kết nối những tinh hoa đặc sắc nhất của ${anchor.region}: từ di sản tâm linh, cảnh quan mây núi đến ẩm thực đặc sản bản địa. Lịch trình phân bổ nhịp nhàng giữa thời gian tham quan, thưởng thức ẩm thực và nghỉ ngơi tái tạo năng lượng.`;
 
-  // Tạo Google Maps URL đa điểm
-  const allStops = chosenPlaces.map((p) => `${p.lat},${p.lng}`);
+  // Tạo Google Maps URL đa điểm bắt đầu từ vị trí của người dùng (nếu có)
+  const allStops: string[] = [];
+  if (userLocation) {
+    allStops.push(`${userLocation.lat},${userLocation.lng}`);
+  }
+  chosenPlaces.forEach((p) => {
+    allStops.push(`${p.lat},${p.lng}`);
+  });
+  if (userLocation && chosenPlaces.length > 0) {
+    allStops.push(`${userLocation.lat},${userLocation.lng}`);
+  }
   const googleMapsUrl = `https://www.google.com/maps/dir/${allStops.join("/")}`;
 
   // Thời gian di chuyển định dạng
@@ -635,6 +726,8 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
       : (anchor.warning || "Chú ý theo dõi thời tiết và chuẩn bị trang phục phù hợp với từng điểm đến."),
     days,
     googleMapsUrl,
+    originName: userLocation?.label || (userLocation ? "Vị trí thiết bị của bạn" : "TP. Việt Trì"),
+    originCoords: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : undefined,
   };
 }
 
@@ -642,10 +735,29 @@ export function buildItinerary(options: PlannerOptions): GeneratedItinerary {
  * Lịch trình du lịch chuẩn 2N1Đ: Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo
  * Biên soạn và chuẩn hóa chính xác theo hồ sơ "lịch trình du lịch.docx"
  */
-export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerary {
+export function getOfficialDocxItinerary(lang: string = "vi", userLocation?: UserLocation): GeneratedItinerary {
   const denHungPlace = places.find((p) => p.id === "den-hung") || places[0];
   const thanhThuyPlace = places.find((p) => p.id === "thanh-thuy") || places[3] || places[0];
   const tamDaoPlace = places.find((p) => p.id === "tam-dao") || places[0];
+
+  const distFromUser = userLocation
+    ? Math.round(haversineDistance(userLocation.lat, userLocation.lng, denHungPlace.lat, denHungPlace.lng))
+    : 10;
+  const userMorningMinutes = userLocation
+    ? Math.max(15, Math.round(distFromUser * 1.4))
+    : 15;
+
+  const day1Slot0Title = userLocation
+    ? (lang === "en" ? "Depart from your location → Hung Temple" : "Khởi hành từ vị trí của bạn → Đền Hùng")
+    : "Xuất phát từ trung tâm Việt Trì";
+
+  const day1Slot0Activity = userLocation
+    ? `Khởi hành từ vị trí thiết bị (${userLocation.label || "vị trí của bạn"}), di chuyển hướng về Khu di tích lịch sử Quốc gia đặc biệt Đền Hùng.`
+    : "Đoàn tập trung tại trung tâm thành phố Việt Trì, khởi hành hướng về Khu di tích lịch sử Quốc gia đặc biệt Đền Hùng.";
+
+  const day1Slot0Transport = userLocation
+    ? `Di chuyển bằng ô tô / xe máy từ vị trí của bạn (~${distFromUser} km, khoảng ${userMorningMinutes} phút lái xe). Đường đi theo lộ trình tối ưu trên bản đồ Google Maps.`
+    : "Di chuyển theo Đại lộ Hùng Vương / Quốc lộ 2 thẳng tới xã Hy Cương (~10 km, thời gian lái xe khoảng 15 phút). Đường đô thị rộng thoáng, biển chỉ dẫn rõ ràng.";
 
   const lynnTimesStay: NearbyItem = {
     name: "Lynn Times Thanh Thủy Resort & Khoáng Nóng",
@@ -665,21 +777,27 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
   const day1Slots: ItinerarySlot[] = [
     {
       period: "Sáng",
-      timeSlot: "07:30",
-      title: "Xuất phát từ trung tâm Việt Trì",
+      timeSlot: "07:00 – 07:25",
+      title: userLocation ? day1Slot0Title : "Xuất phát từ TP. Việt Trì → Đền Hùng (~12 km)",
       type: "travel",
       image: "/images/places/viet-tri.jpg",
-      activity: "Đoàn tập trung tại trung tâm thành phố Việt Trì, khởi hành hướng về Khu di tích lịch sử Quốc gia đặc biệt Đền Hùng.",
-      transportAdvice: "Di chuyển theo Đại lộ Hùng Vương / Quốc lộ 2 thẳng tới xã Hy Cương (~10 km, thời gian lái xe khoảng 15 phút). Đường đô thị rộng thoáng, biển chỉ dẫn rõ ràng.",
-      travelMinutes: 15,
-      highlightNote: "Khởi hành hành trình Cội Nguồn Đất Tổ",
+      activity: day1Slot0Activity,
+      transportAdvice: userLocation
+        ? `Di chuyển bằng ô tô / xe máy từ vị trí của bạn (~${distFromUser} km, khoảng ${userMorningMinutes} phút lái xe).`
+        : "Đoàn xuất phát từ trung tâm TP. Việt Trì đi theo Đại lộ Hùng Vương / QL2 (~12 km, 25 phút lái xe ô tô hoặc xe máy). Đường đô thị rộng thoáng, biển chỉ dẫn rõ ràng.",
+      travelMinutes: userLocation ? userMorningMinutes : 25,
+      highlightNote: userLocation ? "Khởi hành từ vị trí của bạn" : "Khởi hành hành trình Cội Nguồn Đất Tổ (12 km ~ 25 phút)",
       estimatedCostPerPerson: 0,
-      audioScript: "Xin chào bạn! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi sẽ đồng hành cùng bạn trong hành trình 2 ngày 1 đêm khám phá Đất Tổ. Chuyến đi bắt đầu từ trung tâm Việt Trì, đưa bạn trở về với cội nguồn dân tộc tại Khu di tích lịch sử Đền Hùng, thư giãn tại Thanh Thủy và kết thúc hành trình bằng một ngày khám phá Tam Đảo. Bạn có thể lựa chọn di chuyển bằng ô tô hoặc xe máy. Nếu đi cùng gia đình, người lớn tuổi hoặc trẻ nhỏ, ô tô sẽ thuận tiện và thoải mái hơn. Nếu đi cùng bạn bè hoặc nhóm nhỏ, xe máy sẽ phù hợp với những ai muốn chủ động thời gian và tận hưởng cung đường. Trong hành trình hôm nay, tôi sẽ không chỉ hướng dẫn bạn đi đâu, đi như thế nào, mà còn kể cho bạn nghe những câu chuyện, truyền thuyết và giá trị văn hóa – lịch sử gắn với vùng đất này. Bây giờ, chúng ta cùng bắt đầu nhé!",
-      audioScriptEn: "Hello! I am your Ancestral Land Travel Assistant. Today, I will accompany you on a 2-day, 1-night journey exploring Phu Tho: starting from Viet Tri city center, returning to ancestral roots at Hung Kings Temple, unwinding in Thanh Thuy hot springs, and concluding with a cloud-hunting day in Tam Dao. Let's begin our journey!",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["viet-tri"]?.audioFile,
+      audioDuration: "00:36",
+      audioScript: userLocation
+        ? `Xin chào bạn! Tôi là Trợ lý Du lịch Đất Tổ. Hành trình hôm nay xuất phát trực tiếp từ vị trí của bạn, đưa bạn đến với cội nguồn dân tộc tại Đền Hùng, tiếp đó là không gian khoáng nóng thư thái tại Thanh Thủy và săn mây Tam Đảo. Chúc bạn có chuyến đi tràn đầy niềm vui!`
+        : TOUR_AUDIO_GUIDES.tour2n1d["viet-tri"]?.text || "Xin chào bạn! Tôi là Trợ lý Du lịch Đất Tổ...",
+      audioScriptEn: "Hello! I am your Ancestral Land Travel Assistant. Today, I will accompany you on a 2-day, 1-night journey exploring Phu Tho: returning to ancestral roots at Hung Kings Temple, unwinding in Thanh Thuy hot springs, and concluding with a cloud-hunting day in Tam Dao. Let's begin our journey!",
     },
     {
       period: "Sáng",
-      timeSlot: "07:30 – 08:00",
+      timeSlot: "07:30 – 08:15",
       title: "Ăn sáng tại Nhà hàng Mai Anh",
       type: "meal",
       restaurant: {
@@ -698,12 +816,14 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Nạp năng lượng chuẩn bị leo núi Nghĩa Lĩnh (40.000–60.000đ/người)",
       estimatedCostPerPerson: 50000,
-      audioScript: "Để chuẩn bị thể lực dồi dào cho hành trình leo núi Nghĩa Lĩnh, đoàn dừng chân tại Nhà hàng Mai Anh ngay cửa ngõ Đền Hùng, thưởng thức tô phở bò gia truyền hoặc bún bò Huế nóng sốt đậm đà hương vị.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["mai-anh"]?.audioFile,
+      audioDuration: "00:28",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["mai-anh"]?.text || "Để chuẩn bị thể lực dồi dào cho hành trình leo núi Nghĩa Lĩnh, đoàn dừng chân tại Nhà hàng Mai Anh...",
       audioScriptEn: "Energize yourself before the ascent up Mount Nghia Linh with a hot bowl of traditional beef pho or Hue beef noodles at Mai Anh Restaurant right by the entrance.",
     },
     {
       period: "Sáng",
-      timeSlot: "08:00 – 10:30",
+      timeSlot: "08:15 – 10:45",
       title: "Hành hương chiêm bái Quần thể Di tích Đền Hùng",
       type: "visit",
       place: denHungPlace,
@@ -712,16 +832,18 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 15,
       highlightNote: "Đền Hạ → Đền Trung → Đền Thượng → Đền Giếng → Bảo tàng Hùng Vương (Miễn phí vào cổng)",
       estimatedCostPerPerson: 0,
-      audioScript: "Bạn hãy bắt đầu hành trình tại Cổng chính Khu di tích lịch sử Đền Hùng dưới chân núi Nghĩa Lĩnh, xây dựng năm 1917 với dòng chữ 'Cao sơn cảnh hành'. Men theo tuyến bậc đá dẫn lên sườn núi, điểm dừng đầu tiên là Đền Hạ – nơi gắn liền với truyền thuyết Mẹ Âu Cơ sinh bọc trăm trứng, cội nguồn của hai tiếng 'đồng bào' và hình ảnh 'Con Rồng, cháu Tiên'. Ngay cạnh Đền Hạ là Chùa Thiên Quang với cây vạn tuế ba nhánh 800 năm tuổi, nơi Bác Hồ về thăm ngày 19 tháng 9 năm 1954. Tiếp tục leo 159 bậc đá, bạn sẽ đến Đền Trung – Hùng Vương Tổ Miếu, nơi các Vua Hùng cùng Lạc hầu, Lạc tướng bàn việc nước và gắn với câu chuyện Lang Liêu làm bánh chưng bánh giầy dâng vua cha. Vượt tiếp 100 bậc đá lên đỉnh núi cao nhất là Đền Thượng – Kính Thiên Lĩnh Điện, nơi diễn ra các nghi lễ Giỗ Tổ trang nghiêm và Cột đá thề linh thiêng. Năm 2012, Tín ngưỡng thờ cúng Hùng Vương đã được UNESCO ghi danh Di sản văn hóa phi vật thể đại diện của nhân loại. Sau khi dâng hương, theo lối phía sau bạn xuống viếng Lăng Hùng Vương thứ sáu trầm mặc, rồi qua Đền Giếng soi bóng giếng cổ Ngọc Tỉnh nơi công chúa Tiên Dung và Ngọc Hoa thường chải tóc. Điểm cuối là Bảo tàng Hùng Vương trên Đồi Công Quán, nơi trưng bày các hiện vật khảo cổ học Phùng Nguyên, Đồng Đậu, Gò Mun và trống đồng Đông Sơn rực rỡ.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["den-hung"]?.audioFile,
+      audioDuration: "00:42",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["den-hung"]?.text || "Bạn hãy bắt đầu hành trình tại Cổng chính Khu di tích lịch sử Đền Hùng...",
       audioScriptEn: "Begin at the Main Gate constructed in 1917 inscribed with 'Cao Son Canh Hanh'. Climb stone steps to Ha Temple, commemorating Mother Au Co's hundred-egg sac and the roots of national solidarity. Next door sits Thien Quang Pagoda with an 800-year-old cycad tree marking Ho Chi Minh's 1954 historic visit. Ascend 159 steps to Trung Temple, where Kings deliberated with generals and Lang Liêu crafted square earth and round sky cakes. Continue 100 steps to the summit at Thuong Temple - Kinh Thien Linh Dien, epicenter of the UNESCO-inscribed Ancestral Worship rites. Descend to the 6th King's Mausoleum, Gieng Temple with Princesses Tien Dung and Ngoc Hoa's reflection well, and conclude at Hung Kings Museum examining prehistoric Bronze Age Dong Son drums.",
     },
     {
       period: "Trưa",
-      timeSlot: "10:30 – 11:00",
+      timeSlot: "10:45 – 11:00",
       title: "Xuống núi và di chuyển đến nhà hàng",
       type: "travel",
       activity: "Xuống núi Nghĩa Lĩnh, nghỉ ngơi lấy lại sức và di chuyển sang nhà hàng ẩm thực đất Tổ.",
-      transportAdvice: "Khoảng cách ~2 km, di chuyển bằng ô tô riêng hoặc xe điện nội khu mất khoảng 5–10 phút.",
+      transportAdvice: "Khoảng cách ~2 km, di chuyển bằng ô tô riêng hoặc xe máy mất khoảng 5–10 phút.",
       travelMinutes: 10,
       highlightNote: "Nghỉ chân chuẩn bị bữa trưa đặc sản vùng Đất Tổ",
       estimatedCostPerPerson: 0,
@@ -750,25 +872,27 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Ẩm thực truyền thống Đất Tổ (120.000–180.000đ/người)",
       estimatedCostPerPerson: 150000,
-      audioScript: "Nhà hàng Giang Lan Đền Hùng là địa điểm phù hợp để thưởng thức các món đặc sản Phú Thọ sau hành trình tham quan Đền Hùng. Nhà hàng phục vụ những món ăn mang hương vị địa phương, nổi bật với các đặc sản vùng Đất Tổ như cá lăng om chuối đậu, gà đồi hấp lá chanh, thịt chua Thanh Sơn, phù hợp cho cả gia đình và đoàn khách du lịch.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["giang-lan"]?.audioFile,
+      audioDuration: "00:30",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["giang-lan"]?.text || "Nhà hàng Giang Lan Đền Hùng là địa điểm phù hợp để thưởng thức các món đặc sản Phú Thọ sau hành trình tham quan Đền Hùng...",
       audioScriptEn: "Giang Lan Restaurant is an ideal stop to taste Phu Tho culinary specialties after exploring Hung Temple. It serves authentic local delicacies including Da River fish stewed with green banana, steamed free-range hill chicken, and Thanh Son fermented pork.",
     },
     {
       period: "Chiều",
-      timeSlot: "12:15 – 13:30",
+      timeSlot: "12:15 – 13:15",
       title: "Di chuyển Đền Hùng → Thanh Thủy (~35 km)",
       type: "travel",
       activity: "Rời khu di tích Đền Hùng, xe lăn bánh theo đường tỉnh 317 ven đê sông Đà thơ mộng hướng về khu du lịch nghỉ dưỡng khoáng nóng Thanh Thủy.",
       transportAdvice: "Cung đường ĐT317 trải nhựa êm thuận, cự ly ~35 km, thời gian di chuyển khoảng 50–60 phút. Hai bên đường là khung cảnh đồng quê xanh ngát và dòng sông Đà hùng vĩ.",
-      travelMinutes: 50,
-      highlightNote: "Cung đường ven sông Đà nối Đất Tổ với thiên đường khoáng nóng",
+      travelMinutes: 60,
+      highlightNote: "Cung đường ven sông Đà nối Đất Tổ với thiên đường khoáng nóng (35 km ~ 60 phút)",
       estimatedCostPerPerson: 0,
       audioScript: "Rời Đền Hùng, xe lăn bánh theo đường tỉnh 317 ven đê sông Đà thơ mộng hướng về khu nghỉ dưỡng khoáng nóng Thanh Thủy. Tuyến đường 35 km êm thuận với khung cảnh đồng quê thanh bình, đưa bạn đến với miền khoáng nóng trứ danh của Phú Thọ.",
       audioScriptEn: "Departing Hung Temple, scenic Provincial Road 317 winds along the romantic Da River dyke for 35 km towards the geothermal mineral springs of Thanh Thuy.",
     },
     {
       period: "Chiều",
-      timeSlot: "13:30 – 14:00",
+      timeSlot: "13:15 – 14:00",
       title: "Đến Lynn Times Thanh Thủy, gửi hành lý",
       type: "stay",
       place: thanhThuyPlace,
@@ -778,7 +902,9 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Check-in sảnh đón tiếp sang trọng và nhận trà đón tiếp",
       estimatedCostPerPerson: 0,
-      audioScript: "Chào mừng bạn đến với Lynn Times Thanh Thủy! Quý khách dừng chân tại sảnh chính sang trọng, thưởng thức tách trà thảo mộc đón tiếp và gửi hành lý trong thời gian chuẩn bị nhận phòng.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["thanh-thuy"]?.audioFile,
+      audioDuration: "00:45",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["thanh-thuy"]?.text || "Chào mừng bạn đến với Lynn Times Thanh Thủy!...",
       audioScriptEn: "Welcome to Lynn Times Thanh Thuy! Arrive at the 5-star grand reception hall, enjoy welcome herbal tea, and store luggage before room check-in.",
     },
     {
@@ -806,8 +932,10 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Suối khoáng Radon quý hiếm & xông hơi đá muối Himalaya (Đã bao gồm trong combo phòng)",
       estimatedCostPerPerson: 0,
-      audioScript: "Lynn Times Thanh Thủy là một khu nghỉ dưỡng khoáng nóng mang đậm phong cách Nhật Bản, nơi dịch vụ được xây dựng như một câu chuyện văn hóa tinh tế. Khi bước vào không gian Onsen, du khách sẽ cảm nhận sự thư thái trong từng chi tiết: làn nước khoáng nóng tự nhiên giàu khoáng chất và khí Radon quý hiếm giúp cơ thể phục hồi, cùng phong cách phục vụ nhẹ nhàng, chu đáo. Trải nghiệm tại đây không chỉ dừng lại ở tắm khoáng, mà còn là hành trình chăm sóc sức khỏe toàn diện với bể Jacuzzi thủy lực, bồn thảo dược và xông hơi Sauna đá muối Himalaya giải tỏa mọi căng thẳng.",
-      audioScriptEn: "Lynn Times Thanh Thuy is a Japanese-style hot mineral resort where wellness is crafted like refined cultural storytelling. Step into the Onsen sanctuary to bathe in rare natural radon-infused geothermal waters that rejuvenate muscles and mind, complemented by Himalayan salt sauna and herbal therapy baths.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["thanh-thuy"]?.audioFile,
+      audioDuration: "00:45",
+      audioScript: "Lynn Times Thanh Thủy là một khu nghỉ dưỡng khoáng nóng mang đậm phong cách Nhật Bản, nơi dịch vụ được xây dựng như một câu chuyện văn hóa tinh tế...",
+      audioScriptEn: "Lynn Times Thanh Thuy is a Japanese-style hot mineral resort where wellness is crafted like refined cultural storytelling.",
     },
     {
       period: "Chiều",
@@ -820,8 +948,8 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Check-in phố hoa, hồ cá Koi và thư giãn trà chiều (Tùy chi tiêu cá nhân)",
       estimatedCostPerPerson: 50000,
-      audioScript: "Điểm nhấn đặc biệt là khu phố Nhật ngay trong khuôn viên, nơi tái hiện khung cảnh truyền thống với đèn lồng, mái ngói cong, tạo nên không gian check-in độc đáo. Bên cạnh đó, vườn Nhật với bonsai, cầu gỗ, hồ nước trong xanh mang lại cảm giác thiền định, còn hồ cá Koi rực rỡ sắc màu trở thành biểu tượng may mắn và là nơi du khách dừng chân ngắm cảnh. Quán café phong cách Nhật cũng là điểm hẹn lý tưởng để thưởng thức đồ uống, trò chuyện và lưu giữ những bức hình đẹp.",
-      audioScriptEn: "A standout highlight is the on-site Japanese walking street recreating traditional architectures with hanging paper lanterns and curved tiled roofs. Wander through Zen gardens with bonsai and wooden bridges, marvel at colorful lucky Koi carp ponds, and unwind at a Japanese tea cafe.",
+      audioScript: "Điểm nhấn đặc biệt là khu phố Nhật ngay trong khuôn viên, nơi tái hiện khung cảnh truyền thống với đèn lồng, mái ngói cong, tạo nên không gian check-in độc đáo...",
+      audioScriptEn: "A standout highlight is the on-site Japanese walking street recreating traditional architectures with hanging paper lanterns and curved tiled roofs.",
     },
     {
       period: "Tối",
@@ -859,8 +987,10 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Thưởng thức Chả cá sông Đà nóng hổi trứ danh (150.000–250.000đ/người)",
       estimatedCostPerPerson: 200000,
-      audioScript: "Nhà hàng Tinh Hoa Bắc Bộ & Chả Cá Sông Đà tại Lynn Times Thanh Thủy là nơi du khách được thưởng thức ẩm thực mang đậm hương vị vùng miền. Không gian nhà hàng kết hợp nét hiện đại với phong cách Bắc Bộ truyền thống, tạo cảm giác vừa sang trọng vừa gần gũi. Điểm nhấn đặc biệt chính là món Chả Cá Sông Đà, chế biến từ cá tươi đánh bắt ngay dòng sông Đà, thịt chắc, thơm, kết hợp cùng gia vị truyền thống tạo nên hương vị khó quên. Ngoài ra thực đơn còn có nhiều món đặc sản Bắc Bộ tinh tế, mang lại một trải nghiệm văn hóa ẩm thực trọn vẹn.",
-      audioScriptEn: "Tinh Hoa Bac Bo & Cha Ca Song Da Restaurant at Lynn Times celebrates northern culinary identity. The star highlight is grilled Da River fish patties, served sizzling on oil pans with fresh dill, spring onions, rice vermicelli, roasted peanuts, and traditional seasoning sauces.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tinh-hoa-bac-bo"]?.audioFile,
+      audioDuration: "00:35",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["tinh-hoa-bac-bo"]?.text || "Nhà hàng Tinh Hoa Bắc Bộ & Chả Cá Sông Đà tại Lynn Times Thanh Thủy...",
+      audioScriptEn: "Tinh Hoa Bac Bo & Cha Ca Song Da Restaurant at Lynn Times celebrates northern culinary identity. The star highlight is grilled Da River fish patties.",
     },
     {
       period: "Tối",
@@ -953,7 +1083,7 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       activity: "Khởi hành rời Thanh Thủy, qua cầu Đồng Quang / cầu Văn Lang, theo tuyến Quốc lộ 2B vượt cung đèo thông reo uốn lượn hướng lên đỉnh mây Tam Đảo.",
       transportAdvice: "Khoảng cách ~65 km (~1 giờ 30 phút). Đoạn đèo Tam Đảo dài 13 km uốn lượn phong cảnh hữu tình, tài xế lưu ý giữ tốc độ ổn định và đi số thấp.",
       travelMinutes: 90,
-      highlightNote: "Cung đường đèo mây ngoạn mục dẫn lên vùng mây trong sương",
+      highlightNote: "Cung đường đèo mây ngoạn mục dẫn lên vùng mây trong sương (65 km ~ 90 phút)",
       estimatedCostPerPerson: 0,
       audioScript: "Rời Thanh Thủy, xe qua cầu kết nối sang Quốc lộ 2B vượt cung đèo thông reo uốn lượn dài 13 km hướng lên Tam Đảo. Khi xe lên đến độ cao gần 1.000 mét, không khí chuyển sang mát lạnh đặc trưng và mây mù giăng mắc quanh sườn núi kỳ vĩ.",
       audioScriptEn: "Departing Thanh Thuy across the river, ascend the 13-km pine-clad scenic winding pass along National Route 2B towards Tam Dao, as crisp highland breezes replace valley warmth.",
@@ -969,8 +1099,10 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Biểu tượng trung tâm du lịch Tam Đảo mây mù bồng bềnh (0đ)",
       estimatedCostPerPerson: 0,
-      audioScript: "Quảng trường Tam Đảo nằm ngay trung tâm xã Tam Đảo, được ví như 'trái tim' của vùng đất nghỉ dưỡng trên mây. Đây là nơi du khách dễ dàng cảm nhận nhịp sống sôi động của Tam Đảo, vừa hiện đại vừa giữ được nét văn hóa vùng núi. Ban ngày, quảng trường rộng rãi, thoáng đãng, là điểm lý tưởng để dạo bộ, chụp ảnh với khung cảnh núi non hùng vĩ bao quanh. Đến Quảng trường Tam Đảo, du khách không chỉ có những bức hình đẹp, mà còn cảm nhận được tinh thần trẻ trung, năng động của khu nghỉ dưỡng, đồng thời thấy rõ sự gắn kết giữa con người và thiên nhiên nơi đây.",
-      audioScriptEn: "Tam Dao Central Square is the beating heart of this misty mountain resort. Spacious and breezy during the day, framed by towering mountains and fairy-tale castle facades, it is the premier spot for strolling and capturing vibrant photos.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-quang-truong"]?.audioFile,
+      audioDuration: "00:34",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-quang-truong"]?.text || "Quảng trường Tam Đảo nằm ngay trung tâm xã Tam Đảo...",
+      audioScriptEn: "Tam Dao Central Square is the beating heart of this misty mountain resort.",
     },
     {
       period: "Trưa",
@@ -983,8 +1115,10 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Kiệt tác Gothic đá xanh cổ kính & góc ngắm thung lũng mây huyền thoại (0đ)",
       estimatedCostPerPerson: 0,
-      audioScript: "Nhà thờ đá Tam Đảo là một công trình mang tính biểu tượng, được người Pháp xây dựng từ đầu thế kỷ XX khi Tam Đảo mới hình thành như một điểm nghỉ dưỡng. Toàn bộ nhà thờ được dựng bằng đá xanh, theo phong cách Gothic cổ điển, tạo nên vẻ đẹp uy nghi, cổ kính giữa khung cảnh núi rừng mờ sương. Điều đặc biệt là nhà thờ đá không chỉ là nơi sinh hoạt tôn giáo, mà còn là minh chứng cho sự giao thoa văn hóa giữa phương Tây và vùng núi Việt Nam. Ngày nay, nhà thờ đá trở thành điểm check-in không thể bỏ qua với các vòm cửa đá cổ kính nhìn xuống thung lũng mây bồng bềnh.",
-      audioScriptEn: "Tam Dao Stone Church is an iconic French Gothic monument built from bluish stones in the early 20th century. Standing majestically amidst swirling mountain mist, its stone arches frame spellbinding panoramas of the cloud-filled valley below.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-nha-tho"]?.audioFile,
+      audioDuration: "00:36",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-nha-tho"]?.text || "Nhà thờ đá Tam Đảo là một công trình mang tính biểu tượng...",
+      audioScriptEn: "Tam Dao Stone Church is an iconic French Gothic monument built from bluish stones in the early 20th century.",
     },
     {
       period: "Trưa",
@@ -1008,8 +1142,10 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Ẩm thực ngọn su su xanh non & gà đồi nướng than (150.000–250.000đ/người)",
       estimatedCostPerPerson: 200000,
-      audioScript: "Nhà hàng Tam Đảo Núi là một điểm dừng chân ẩm thực độc đáo, nằm giữa khung cảnh núi rừng hùng vĩ của Tam Đảo. Với thiết kế mở, tận dụng tối đa không gian thoáng đãng và tầm nhìn bao quát, nhà hàng mang đến cho du khách cảm giác vừa gần gũi thiên nhiên, vừa sang trọng tinh tế. Thực đơn tại đây phong phú, kết hợp giữa đặc sản núi rừng Tam Đảo và các món ăn truyền thống Việt Nam: gà đồi bọc đất nướng than hoa, lợn bản, rau rừng tươi ngon và đặc biệt là món ngọn su su xào tỏi xanh mướt giòn ngọt đặc trưng của xứ mây.",
-      audioScriptEn: "Tam Dao Nui Restaurant offers a memorable culinary stop enveloped by grand mountain landscapes. Enjoy flavorful highland dishes like grilled hill chicken, wild boar skewers, and crunchy garlic-sautéed chayote greens harvested fresh from local terraced slopes.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-nui"]?.audioFile,
+      audioDuration: "00:30",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-nui"]?.text || "Nhà hàng Tam Đảo Núi là một điểm dừng chân ẩm thực độc đáo...",
+      audioScriptEn: "Tam Dao Nui Restaurant offers a memorable culinary stop enveloped by grand mountain landscapes.",
     },
     {
       period: "Chiều",
@@ -1032,8 +1168,10 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 10,
       highlightNote: "Tọa độ săn mây ngắm trọn thung lũng từ đỉnh trời (60.000–100.000đ/người)",
       estimatedCostPerPerson: 80000,
-      audioScript: "Tam Đảo Café trên Cổng Trời là một điểm dừng chân rất đặc biệt, nằm ngay khu vực Cổng Trời – nơi cao nhất của Tam Đảo. Quán café sở hữu tầm nhìn bao quát toàn cảnh núi rừng và thung lũng phía dưới. Ngồi ở đây, du khách có thể thưởng thức một tách cà phê nóng trong làn sương mờ buổi sáng, ngắm nhìn biển mây bồng bềnh và lâu đài cổ tích phía xa. Đây không chỉ là nơi uống cà phê, mà còn là trải nghiệm văn hóa hòa mình vào thiên nhiên, tìm lại sự cân bằng và an yên giữa núi rừng.",
-      audioScriptEn: "Tam Dao Cafe tren Cong Troi occupies the highest vantage point at Heaven's Gate, boasting 360-degree panorama vistas over mist-covered pine valleys and fairytale stone castles while sipping hot artisanal coffee.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-cong-troi"]?.audioFile,
+      audioDuration: "00:32",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-cong-troi"]?.text || "Tam Đảo Café trên Cổng Trời là một điểm dừng chân rất đặc biệt...",
+      audioScriptEn: "Tam Dao Cafe tren Cong Troi occupies the highest vantage point at Heaven's Gate.",
     },
     {
       period: "Chiều",
@@ -1046,7 +1184,9 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
       travelMinutes: 5,
       highlightNote: "Mua quà đặc sản ngọn su su & nông sản tươi ngon (Tùy chi tiêu cá nhân)",
       estimatedCostPerPerson: 100000,
-      audioScript: "Sau khi tham quan các địa điểm nổi tiếng như Nhà thờ đá hay lên Cổng Trời, du khách quay lại khu trung tâm Tam Đảo để check-in và tận hưởng không khí nhộn nhịp. Khu trung tâm chính là nơi hội tụ nhiều dịch vụ du lịch: quán café, nhà hàng đặc sản núi rừng và chợ truyền thống với những bó ngọn su su tươi non mơn mởn, chuối mật, măng khô làm quà cho người thân, bạn bè.",
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-ket-thuc"]?.audioFile,
+      audioDuration: "00:38",
+      audioScript: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-ket-thuc"]?.text || "Sau khi tham quan các địa điểm nổi tiếng như Nhà thờ đá hay lên Cổng Trời...",
       audioScriptEn: "Return to Tam Dao town center to stroll through bustling local markets, picking up fresh chayote bundles, mountain honey bananas, and dried bamboo shoots as gifts.",
     },
     {
@@ -1079,26 +1219,40 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
     {
       period: "Chiều",
       timeSlot: "16:00 – 17:30",
-      title: "Di chuyển Tam Đảo → Việt Trì (~75 km)",
+      title: userLocation
+        ? `Di chuyển Tam Đảo → Vị trí của bạn (~${Math.round(haversineDistance(tamDaoPlace.lat, tamDaoPlace.lng, userLocation.lat, userLocation.lng))} km)`
+        : "Di chuyển Tam Đảo → Việt Trì (~75 km)",
       type: "travel",
-      activity: "Xe khởi hành xuống đèo Tam Đảo, rẽ vào Quốc lộ 2B nối sang Quốc lộ 2, qua cầu Hạc Trì / cầu Việt Trì trở về trung tâm thành phố ngã ba sông.",
-      transportAdvice: "Cự ly ~75 km (~1 giờ 30 phút). Đi xe êm ái, ngắm hoàng hôn rực rỡ buông xuống đôi bờ sông Hồng, sông Lô.",
-      travelMinutes: 90,
-      highlightNote: "Hành trình trở về an toàn và ngắm hoàng hôn đồng bằng Bắc Bộ",
+      activity: userLocation
+        ? `Xe khởi hành xuống đèo Tam Đảo, di chuyển trở về vị trí thiết bị ban đầu của quý khách (${userLocation.label || "vị trí của bạn"}).`
+        : "Xe khởi hành xuống đèo Tam Đảo, rẽ vào Quốc lộ 2B nối sang Quốc lộ 2, qua cầu Hạc Trì / cầu Việt Trì trở về trung tâm thành phố ngã ba sông.",
+      transportAdvice: userLocation
+        ? `Cự ly ~${Math.round(haversineDistance(tamDaoPlace.lat, tamDaoPlace.lng, userLocation.lat, userLocation.lng))} km. Đi xe êm ái, theo chỉ dẫn lộ trình Google Maps.`
+        : "Cự ly ~75 km (~1 giờ 30 phút). Đi xe êm ái, ngắm hoàng hôn rực rỡ buông xuống đôi bờ sông Hồng, sông Lô.",
+      travelMinutes: userLocation
+        ? Math.max(30, Math.round(haversineDistance(tamDaoPlace.lat, tamDaoPlace.lng, userLocation.lat, userLocation.lng) * 1.4))
+        : 90,
+      highlightNote: userLocation ? "Hành trình trở về an toàn đến vị trí của bạn" : "Hành trình trở về an toàn và ngắm hoàng hôn đồng bằng Bắc Bộ",
       estimatedCostPerPerson: 0,
-      audioScript: "Xe khởi hành xuống đèo Tam Đảo, rẽ vào Quốc lộ 2B nối sang Quốc lộ 2, qua cầu Hạc Trì trở về trung tâm thành phố ngã ba sông Việt Trì. Quý khách thư giãn ngắm hoàng hôn buông xuống đôi bờ sông Hồng và sông Lô thanh bình.",
-      audioScriptEn: "Drive down the winding mountain pass along National Routes 2B and 2 back to Viet Tri city center, admiring the peaceful sunset over the Red and Lo rivers.",
+      audioScript: userLocation
+        ? `Xe khởi hành xuống đèo Tam Đảo, di chuyển trở về điểm xuất phát ban đầu. Quý khách thư giãn ngắm hoàng hôn thanh bình và hoàn tất hành trình.`
+        : "Xe khởi hành xuống đèo Tam Đảo, rẽ vào Quốc lộ 2B nối sang Quốc lộ 2, qua cầu Hạc Trì trở về trung tâm thành phố ngã ba sông Việt Trì. Quý khách thư giãn ngắm hoàng hôn buông xuống đôi bờ sông Hồng và sông Lô thanh bình.",
+      audioScriptEn: "Drive down the winding mountain pass along scenic routes back towards your location, admiring the peaceful sunset.",
     },
     {
       period: "Chiều",
       timeSlot: "~17:30",
-      title: "Kết thúc hành trình tại Việt Trì",
+      title: userLocation ? "Kết thúc hành trình tại vị trí của bạn" : "Kết thúc hành trình tại Việt Trì",
       type: "visit",
-      activity: "Đoàn về đến trung tâm thành phố Việt Trì an toàn. Hướng dẫn viên cảm ơn và chia tay quý khách, kết thúc chuyến du lịch 2 ngày 1 đêm 'Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo' thành công tốt đẹp, đầy ắp kỷ niệm đáng nhớ.",
+      activity: userLocation
+        ? `Đoàn về đến vị trí của quý khách an toàn. Hướng dẫn viên cảm ơn và chia tay quý khách, kết thúc chuyến du lịch 2 ngày 1 đêm 'Đền Hùng – Thanh Thủy – Tam Đảo' xuất phát từ vị trí của bạn thành công tốt đẹp, đầy ắp kỷ niệm đáng nhớ.`
+        : "Đoàn về đến trung tâm thành phố Việt Trì an toàn. Hướng dẫn viên cảm ơn và chia tay quý khách, kết thúc chuyến du lịch 2 ngày 1 đêm 'Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo' thành công tốt đẹp, đầy ắp kỷ niệm đáng nhớ.",
       transportAdvice: "Kết thúc tour tại điểm đón ban đầu.",
       travelMinutes: 0,
       highlightNote: "Hoàn thành trọn vẹn hành trình Di Sản – Khoáng Nóng – Mây Núi",
       estimatedCostPerPerson: 0,
+      audioUrl: TOUR_AUDIO_GUIDES.tour2n1d["tam-dao-ket-thuc"]?.audioFile,
+      audioDuration: "00:38",
       audioScript: "Như vậy, hành trình du lịch 2 ngày 1 đêm đã khép lại với những trải nghiệm đáng nhớ: từ không gian linh thiêng của Đền Hùng, sự thư giãn tại suối khoáng nóng Thanh Thủy, cho đến vẻ đẹp mờ sương lãng mạn của Tam Đảo với Nhà thờ đá, Quảng trường trung tâm và Cổng Trời. Trợ lý du lịch Phú Thọ rất hân hạnh được đồng hành cùng bạn. Xin chào và hẹn gặp lại ở những chuyến đi tiếp theo!",
       audioScriptEn: "Our 2-day 1-night journey has concluded with unforgettable memories: from the sacred heritage of Hung Kings Temple, deep relaxation at Thanh Thuy radon mineral springs, to the romantic highland beauty of Tam Dao. It has been an honor accompanying you. Wishing you safe travels and see you again!",
     },
@@ -1127,7 +1281,7 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
     ? "비엣찌 출발, 유네스코 인류유산 훙왕 사원 참배, 강란 향토 생선 요리 오찬, 린타임스 탄투이 5성급 숍텔 체크인, 천연 라돈 온천욕 및 전통 만찬."
     : isJaLang
     ? "ヴィエッチー出発、ユネスコ無形文化遺産フン王廟巡礼、川魚料理の昼食、リンタイムズ・タントゥイ5つ星リゾート宿泊、天然ラドン温泉と名物ディナー。"
-    : "Khởi hành từ trung tâm Việt Trì, ăn sáng Mai Anh, dâng hương tri ân công đức các Vua Hùng qua 4 đền linh thiêng và Bảo tàng Hùng Vương. Thưởng thức bữa trưa cá sông tại nhà hàng Giang Lan. Buổi chiều di chuyển về Lynn Times Thanh Thủy nhận phòng Shoptel 5 sao, ngâm khoáng Radon quý hiếm tại Ohayo Onsen, dạo phố đi bộ sinh thái và thưởng thức bữa tối Chả cá sông Đà & Tinh hoa Bắc Bộ.";
+    : "Khởi hành từ trung tâm Việt Trì lúc 07:00, ăn sáng Mai Anh, dâng hương tri ân công đức các Vua Hùng qua 4 đền linh thiêng và Bảo tàng Hùng Vương. Thưởng thức bữa trưa cá sông tại nhà hàng Giang Lan. Buổi chiều di chuyển về Lynn Times Thanh Thủy nhận phòng Shoptel 5 sao, ngâm khoáng Radon quý hiếm tại Ohayo Onsen, dạo phố đi bộ sinh thái và thưởng thức bữa tối Chả cá sông Đà & Tinh hoa Bắc Bộ.";
 
   const day2DateLabel = isEnLang ? "Day 2" : isZhLang ? "第2天" : isKoLang ? "2일차" : isJaLang ? "2日目" : "Ngày 2";
   const day2Title = isEnLang
@@ -1194,6 +1348,11 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
 
   const itineraryDurationLabel = isEnLang ? "2 days 1 night" : isZhLang ? "2天1晚" : isKoLang ? "1박 2일" : isJaLang ? "1泊2日" : "2 ngày 1 đêm";
 
+  // Full accurate Google Maps Route with all key stops:
+  const officialGoogleMapsUrl = userLocation
+    ? `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/Nhà+hàng+Mai+Anh+Hy+Cương/Khu+di+tích+lịch+sử+Đền+Hùng/Nhà+hàng+Giang+Lan+Đền+Hùng/Lynn+Times+Thanh+Thủy/Nhà+hàng+Tinh+Hoa+Bắc+Bộ+Thanh+Thủy/Quảng+trường+Tam+Đảo/Nhà+thờ+đá+Tam+Đảo/Nhà+hàng+Tam+Đảo+Núi/Cổng+Trời+Tam+Đảo/${userLocation.lat},${userLocation.lng}`
+    : "https://www.google.com/maps/dir/TP.+Việt+Trì/Nhà+hàng+Mai+Anh+Hy+Cương/Khu+di+tích+lịch+sử+Đền+Hùng/Nhà+hàng+Giang+Lan+Đền+Hùng/Lynn+Times+Thanh+Thủy/Nhà+hàng+Tinh+Hoa+Bắc+Bộ+Thanh+Thủy/Quảng+trường+Tam+Đảo/Nhà+thờ+đá+Tam+Đảo/Nhà+hàng+Tam+Đảo+Núi/Cổng+Trời+Tam+Đảo/TP.+Việt+Trì";
+
   return {
     id: "plan-viet-tri-den-hung-thanh-thuy-tam-dao-2n1d",
     title: itineraryTitle,
@@ -1202,20 +1361,273 @@ export function getOfficialDocxItinerary(lang: string = "vi"): GeneratedItinerar
     region: "Phú Thọ",
     durationDays: 2,
     durationLabel: itineraryDurationLabel,
-    transport: "Ô tô riêng",
+    transport: "Ô tô riêng / Xe máy",
     style: "Di sản & Nghỉ dưỡng",
     travelers,
-    totalDistanceKm: 195,
-    totalDriveTime: "4 giờ 15 phút lái xe",
+    totalDistanceKm: userLocation
+      ? Math.round(distFromUser + 35 + 65 + haversineDistance(tamDaoPlace.lat, tamDaoPlace.lng, userLocation.lat, userLocation.lng))
+      : 195,
+    totalDriveTime: userLocation ? "Lộ trình tối ưu từ thiết bị" : "4 giờ 15 phút lái xe",
     estimatedCostPerPerson: totalCostPerPerson,
     totalCost: totalCostPerPerson * travelers,
-    overviewNarrative: "Hành trình du lịch 2 ngày 1 đêm được thiết kế chuẩn xác theo tài liệu lịch trình: kết nối trọn vẹn di sản linh thiêng Đền Hùng, không gian nghỉ dưỡng khoáng nóng Radon 5 sao Lynn Times Thanh Thủy và vùng săn mây thơ mộng Tam Đảo. Lộ trình tối ưu từng khung giờ từ 07:30 sáng ngày 1 đến 17:30 chiều ngày 2, kết hợp hoàn hảo giữa tâm linh, ẩm thực đặc sản bản địa (cá sông Lô, chả cá sông Đà, ngọn su su Tam Đảo) và chăm sóc sức khỏe phục hồi sinh lực.",
-    audioGuideScript: "Xin chào bạn! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi sẽ đồng hành cùng bạn trong hành trình 2 ngày 1 đêm khám phá Đất Tổ: khởi hành từ trung tâm Việt Trì, trở về cội nguồn dân tộc tại Quần thể di tích Đền Hùng, thư giãn tại khu nghỉ dưỡng khoáng nóng Lynn Times Thanh Thủy và kết thúc bằng một ngày khám phá Tam Đảo trong sương. Tại Đền Hùng, chúng ta bắt đầu từ Cổng chính xây năm 1917 với lời nhắc 'Cao sơn cảnh hành', bước lên Đền Hạ nơi Mẹ Âu Cơ sinh bọc trăm trứng khơi nguồn hai tiếng 'đồng bào', viếng Chùa Thiên Quang với cây vạn tuế 800 năm tuổi gắn dấu mốc ngày 19/9/1954 Bác Hồ về thăm. Vượt 159 bậc đá lên Đền Trung – Hùng Vương Tổ Miếu gắn với sự tích bánh chưng bánh giầy Lang Liêu, leo tiếp 100 bậc lên đỉnh Nghĩa Lĩnh viếng Đền Thượng Kính Thiên Lĩnh Điện – trung tâm Tín ngưỡng thờ cúng Hùng Vương được UNESCO vinh danh Di sản nhân loại, rồi xuống viếng Lăng Hùng Vương thứ sáu, Đền Giếng giếng cổ Ngọc Tỉnh và Bảo tàng Hùng Vương trên Đồi Công Quán. Sau bữa trưa đặc sản cá sông Lô tại Nhà hàng Giang Lan, đoàn xuôi dòng sông Đà về Lynn Times Thanh Thủy tận hưởng làn khoáng nóng Radon quý hiếm, dạo phố Nhật, ngắm hồ cá Koi và thưởng thức bữa tối Chả cá sông Đà trứ danh tại Nhà hàng Tinh Hoa Bắc Bộ. Ngày thứ hai, đoàn vượt cung đèo mây 13 km lên đỉnh Tam Đảo, dạo bước Quảng trường trung tâm, chiêm ngưỡng Nhà thờ đá Gothic xây từ năm 1906, thưởng thức bữa trưa ngọn su su và gà đồi tại Nhà hàng Tam Đảo Núi, nhâm nhi cà phê săn mây tại Tam Đảo Café trên Cổng Trời và dạo chợ mua đặc sản phố núi trước khi trở về Việt Trì trong sự thư thái trọn vẹn. Chúc bạn có một chuyến đi tuyệt vời!",
-    audioGuideScriptEn: "Welcome! I am your Ancestral Land Travel Assistant. Today, I accompany you on our official 2-day 1-night journey: departing Viet Tri, returning to sacred roots at Hung Kings Temple, rejuvenating in radon hot mineral springs at Lynn Times Thanh Thuy, and concluding with a cloud-hunting day in misty Tam Dao. At Mount Nghia Linh, we start from the 1917 Main Gate, visit Ha Temple honoring Mother Au Co's hundred-egg sac, Thien Quang Pagoda with its 800-year-old cycad tree, ascend 159 steps to Trung Temple honoring Lang Liêu's cakes, and 100 steps to Thuong Temple atop the summit for UNESCO Ancestral Worship rites, followed by the 6th King's Mausoleum, Gieng Temple, and the Bronze Age museum. After lunch at Giang Lan Restaurant, we follow the Da River to Lynn Times Thanh Thuy for therapeutic radon Onsen bathing, Zen gardens, Koi ponds, and a dinner of sizzling Da River fish patties. On Day 2, we drive up the 13-km winding pass to misty Tam Dao, exploring the Central Square, French Gothic Stone Church, dining at Tam Dao Nui Restaurant, sipping clouds-view coffee at Cong Troi, and gathering local gifts before our scenic return to Viet Tri.",
-    routeAdvice: "Cung đường di chuyển rất thuận lợi: TP. Việt Trì qua Đại lộ Hùng Vương tới Đền Hùng (~10 km) → theo ĐT317 ven sông Đà tới Thanh Thủy (~35 km) → qua cầu Đồng Quang / cầu Văn Lang kết nối Quốc lộ 2B vượt dốc đèo lên Tam Đảo (~65 km) → theo QL2B và QL2 trở về trung tâm Việt Trì (~75 km). Đoạn đèo Tam Đảo dài 13 km uốn lượn có cảnh quan rất đẹp, tài xế lưu ý giữ khoảng cách an toàn và đi số thấp.",
+    overviewNarrative: userLocation
+      ? `Hành trình du lịch 2 ngày 1 đêm được thiết kế chuẩn xác kết nối từ vị trí của bạn: khám phá di sản linh thiêng Đền Hùng, không gian nghỉ dưỡng khoáng nóng Radon 5 sao Lynn Times Thanh Thủy và săn mây Tam Đảo. Toàn bộ lộ trình di chuyển, quãng đường và thời gian đã được tự động tối ưu hóa từ vị trí thiết bị của quý khách.`
+      : "Hành trình du lịch 2 ngày 1 đêm được thiết kế chuẩn xác theo tài liệu lịch trình: kết nối trọn vẹn di sản linh thiêng Đền Hùng, không gian nghỉ dưỡng khoáng nóng Radon 5 sao Lynn Times Thanh Thủy và vùng săn mây thơ mộng Tam Đảo. Lộ trình tối ưu từng khung giờ từ 07:00 sáng ngày 1 đến 17:30 chiều ngày 2, kết hợp hoàn hảo giữa tâm linh, ẩm thực đặc sản bản địa (cá sông Lô, chả cá sông Đà, ngọn su su Tam Đảo) và chăm sóc sức khỏe phục hồi sinh lực.",
+    audioGuideScript: userLocation
+      ? `Xin chào bạn! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi sẽ đồng hành cùng bạn trong hành trình 2 ngày 1 đêm khám phá Đất Tổ: khởi hành trực tiếp từ vị trí của bạn, đưa bạn trở về cội nguồn dân tộc tại Quần thể di tích Đền Hùng, thư giãn tại khu nghỉ dưỡng khoáng nóng Lynn Times Thanh Thủy và kết thúc bằng một ngày khám phá Tam Đảo trong sương. Chúc bạn có chuyến đi tràn đầy sức sống và niềm vui!`
+      : "Xin chào bạn! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi sẽ đồng hành cùng bạn trong hành trình 2 ngày 1 đêm khám phá Đất Tổ: khởi hành từ trung tâm Việt Trì, trở về cội nguồn dân tộc tại Quần thể di tích Đền Hùng, thư giãn tại khu nghỉ dưỡng khoáng nóng Lynn Times Thanh Thủy và kết thúc bằng một ngày khám phá Tam Đảo trong sương. Tại Đền Hùng, chúng ta bắt đầu từ Cổng chính xây năm 1917 với lời nhắc 'Cao sơn cảnh hành', bước lên Đền Hạ nơi Mẹ Âu Cơ sinh bọc trăm trứng khơi nguồn hai tiếng 'đồng bào', viếng Chùa Thiên Quang với cây vạn tuế 800 năm tuổi gắn dấu mốc ngày 19/9/1954 Bác Hồ về thăm. Vượt 159 bậc đá lên Đền Trung – Hùng Vương Tổ Miếu gắn với sự tích bánh chưng bánh giầy Lang Liêu, leo tiếp 100 bậc lên đỉnh Nghĩa Lĩnh viếng Đền Thượng Kính Thiên Lĩnh Điện – trung tâm Tín ngưỡng thờ cúng Hùng Vương được UNESCO vinh danh Di sản nhân loại, rồi xuống viếng Lăng Hùng Vương thứ sáu, Đền Giếng giếng cổ Ngọc Tỉnh và Bảo tàng Hùng Vương trên Đồi Công Quán. Sau bữa trưa đặc sản cá sông Lô tại Nhà hàng Giang Lan, đoàn xuôi dòng sông Đà về Lynn Times Thanh Thủy tận hưởng làn khoáng nóng Radon quý hiếm, dạo phố Nhật, ngắm hồ cá Koi và thưởng thức bữa tối Chả cá sông Đà trứ danh tại Nhà hàng Tinh Hoa Bắc Bộ. Ngày thứ hai, đoàn vượt cung đèo mây 13 km lên đỉnh Tam Đảo, dạo bước Quảng trường trung tâm, chiêm ngưỡng Nhà thờ đá Gothic xây từ năm 1906, thưởng thức bữa trưa ngọn su su và gà đồi tại Nhà hàng Tam Đảo Núi, nhâm nhi cà phê săn mây tại Tam Đảo Café trên Cổng Trời và dạo chợ mua đặc sản phố núi trước khi trở về Việt Trì trong sự thư thái trọn vẹn. Chúc bạn có một chuyến đi tuyệt vời!",
+    audioGuideScriptEn: userLocation
+      ? `Welcome! I am your Ancestral Land Travel Assistant. Today, I accompany you on our 2-day 1-night journey starting right from your device location: visiting Hung Kings Temple, rejuvenating in radon hot mineral springs at Lynn Times Thanh Thuy, and concluding with a cloud-hunting day in misty Tam Dao. Wishing you safe travels!`
+      : "Welcome! I am your Ancestral Land Travel Assistant. Today, I accompany you on our official 2-day 1-night journey: departing Viet Tri, returning to sacred roots at Hung Kings Temple, rejuvenating in radon hot mineral springs at Lynn Times Thanh Thuy, and concluding with a cloud-hunting day in misty Tam Dao. At Mount Nghia Linh, we start from the 1917 Main Gate, visit Ha Temple honoring Mother Au Co's hundred-egg sac, Thien Quang Pagoda with its 800-year-old cycad tree, ascend 159 steps to Trung Temple honoring Lang Liêu's cakes, and 100 steps to Thuong Temple atop the summit for UNESCO Ancestral Worship rites, followed by the 6th King's Mausoleum, Gieng Temple, and the Bronze Age museum. After lunch at Giang Lan Restaurant, we follow the Da River to Lynn Times Thanh Thuy for therapeutic radon Onsen bathing, Zen gardens, Koi ponds, and a dinner of sizzling Da River fish patties. On Day 2, we drive up the 13-km winding pass to misty Tam Dao, exploring the Central Square, French Gothic Stone Church, dining at Tam Dao Nui Restaurant, sipping clouds-view coffee at Cong Troi, and gathering local gifts before our scenic return to Viet Tri.",
+    routeAdvice: userLocation
+      ? `Cung đường khởi hành trực tiếp từ vị trí của bạn tới Đền Hùng (~${distFromUser} km) → theo ĐT317 ven sông Đà tới Thanh Thủy (~35 km) → qua cầu kết nối sang QL2B vượt dốc đèo lên Tam Đảo (~65 km) → trở về vị trí của bạn (~${Math.round(haversineDistance(tamDaoPlace.lat, tamDaoPlace.lng, userLocation.lat, userLocation.lng))} km).`
+      : "Cung đường di chuyển rất thuận lợi: TP. Việt Trì qua Đại lộ Hùng Vương tới Đền Hùng (~12 km) → theo ĐT317 ven sông Đà tới Thanh Thủy (~35 km) → qua cầu Đồng Quang / cầu Văn Lang kết nối Quốc lộ 2B vượt dốc đèo lên Tam Đảo (~65 km) → theo QL2B và QL2 trở về trung tâm Việt Trì (~75 km). Đoạn đèo Tam Đảo dài 13 km uốn lượn có cảnh quan rất đẹp, tài xế lưu ý giữ khoảng cách an toàn và đi số thấp.",
     cautionAdvice: "Khi tham quan Đền Hùng nên đi giày thể thao hoặc giày đế bệt êm chân do có nhiều bậc đá; trang phục lịch sự, kín đáo nơi đền miếu. Tại Lynn Times Thanh Thủy nên mang đồ bơi hoặc đồ tắm phù hợp để trải nghiệm Onsen trọn vẹn. Lên Tam Đảo nên mang theo áo khoác mỏng hoặc khăn choàng vì thời tiết se lạnh vào chiều tối.",
     days,
-    googleMapsUrl: "https://www.google.com/maps/dir/TP.+Việt+Trì/Khu+di+tích+lịch+sử+Đền+Hùng/Lynn+Times+Thanh+Thủy/Tam+Đảo/TP.+Việt+Trì",
+    googleMapsUrl: officialGoogleMapsUrl,
+    originName: userLocation?.label || (userLocation ? "Vị trí thiết bị của bạn" : "TP. Việt Trì"),
+    originCoords: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : undefined,
+  };
+}
+
+/**
+ * Lịch trình du lịch chuẩn 1 ngày: Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn
+ * Biên soạn và chuẩn hóa chính xác theo hồ sơ "THUYẾT MINH LONG CỐC - XUÂN SƠN.docx"
+ */
+export function getOfficialLongCocXuanSonItinerary(lang: string = "vi", userLocation?: UserLocation): GeneratedItinerary {
+  const longCocPlace = places.find((p) => p.id === "doi-che-long-coc") || places.find((p) => p.id.includes("long-coc")) || places[1] || places[0];
+  const xuanSonPlace = places.find((p) => p.id === "vqg-xuan-son") || places.find((p) => p.id.includes("xuan-son")) || places[2] || places[0];
+
+  const distFromUser = userLocation
+    ? Math.round(haversineDistance(userLocation.lat, userLocation.lng, longCocPlace.lat, longCocPlace.lng))
+    : 70;
+  const userMorningMinutes = userLocation
+    ? Math.max(30, Math.round(distFromUser * 1.3))
+    : 90;
+
+  const day1Slots: ItinerarySlot[] = [
+    {
+      period: "Sáng",
+      timeSlot: "05:30 – 07:00",
+      title: userLocation
+        ? `Khởi hành từ vị trí của bạn → Đồi chè Long Cốc (~${distFromUser} km)`
+        : "Khởi hành TP. Việt Trì → Đồi chè Long Cốc (~70 km)",
+      type: "travel",
+      image: "/images/places/long-coc.jpg",
+      activity: userLocation
+        ? `Đoàn xuất phát sớm từ vị trí thiết bị (${userLocation.label || "vị trí của bạn"}), di chuyển theo Quốc lộ 32 và Tỉnh lộ 316 hướng về huyện Tân Sơn để kịp đón sương sớm và mây bồng bềnh tại đồi chè.`
+        : "Đoàn tập trung tại TP. Việt Trì, xuất phát sớm theo tuyến QL32 qua Thanh Sơn, rẽ vào ĐT316 hướng về xã Long Cốc, huyện Tân Sơn (~70 km, 1 giờ 30 phút lái xe).",
+      transportAdvice: "Di chuyển bằng ô tô riêng hoặc xe máy. Đường đồi núi quanh co nhưng đã trải nhựa êm thuận.",
+      travelMinutes: userMorningMinutes,
+      highlightNote: "Khởi hành sớm đón bình minh & săn mây ốc đảo chè",
+      estimatedCostPerPerson: 0,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-khoi-hanh"]?.audioFile,
+      audioDuration: "00:28",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-khoi-hanh"]?.text,
+      audioScriptEn: "Departing early morning from Viet Tri towards Long Coc tea hills and Xuan Son National Park.",
+    },
+    {
+      period: "Sáng",
+      timeSlot: "07:00 – 08:00",
+      title: "Đón bình minh & săn mây tại Đồi chè Long Cốc",
+      type: "visit",
+      place: longCocPlace,
+      activity: "Chiêm ngưỡng 'Vịnh Hạ Long trên cạn' của vùng trung du trong ánh bình minh: hàng trăm quả đồi chè tròn xoe nhấp nhô như những chiếc bát úp khổng lồ lững lờ giữa biển mây trắng muốt.",
+      transportAdvice: "Gửi xe dưới chân đồi, tản bộ lên đỉnh đồi chè Cầu Mới hoặc đồi Đội 3 ngắm toàn cảnh 360 độ.",
+      travelMinutes: 10,
+      highlightNote: "Tọa độ săn mây & bình minh tuyệt đẹp nhất miền Bắc (Miễn phí vé tham quan)",
+      estimatedCostPerPerson: 0,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-doi-che"]?.audioFile,
+      audioDuration: "00:35",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-doi-che"]?.text,
+      audioScriptEn: "Catch the magical sunrise and floating mist carpets over undulating tea mounds at Long Coc.",
+    },
+    {
+      period: "Sáng",
+      timeSlot: "08:00 – 08:45",
+      title: "Ăn sáng tại Homestay Tony Luận Long Cốc",
+      type: "meal",
+      restaurant: {
+        name: "Homestay Tony Luận – Long Cốc",
+        type: "restaurant",
+        distance: "Dưới chân đồi chè Long Cốc",
+        travelTime: "5 phút",
+        note: "Bữa sáng mộc mạc bản Mường: Bánh mì trứng ốp la, xôi ngũ sắc nếp nương dẻo thơm, măng xào thịt bản và ấm trà Shan tuyết cổ thụ Long Cốc nóng hổi",
+        address: "Xóm Măng 1, xã Long Cốc, Huyện Tân Sơn, Tỉnh Phú Thọ",
+        hours: "06:00 – 22:00",
+        phone: "0968 123 456",
+        image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+        taste: "Trà Shan tuyết chát dịu ngọt hậu sâu, xôi nếp nương thơm dẻo ngút ngàn",
+      },
+      activity: "Thưởng thức bữa sáng bản địa nóng sốt trong không gian nhà sàn gỗ thoáng mát, nhâm nhi tách trà Shan tuyết đặc sản.",
+      transportAdvice: "Nằm ngay khu dân cư trung tâm xã Long Cốc, có sân đỗ xe rộng rãi.",
+      travelMinutes: 5,
+      highlightNote: "Thưởng thức trà Shan tuyết Long Cốc & xôi ngũ sắc nếp nương (35.000–50.000đ/người)",
+      estimatedCostPerPerson: 45000,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-tony-luan"]?.audioFile,
+      audioDuration: "00:26",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-tony-luan"]?.text,
+      audioScriptEn: "Savor local breakfast with highland sticky rice and Long Coc Shan Tuyet green tea at Tony Luan Homestay.",
+    },
+    {
+      period: "Sáng",
+      timeSlot: "08:45 – 10:00",
+      title: "Khám phá & Check-in ốc đảo chè Long Cốc",
+      type: "visit",
+      place: longCocPlace,
+      activity: "Dạo bước men theo các luống chè xanh mướt, thuê trang phục dân tộc Mường, Dao rực rỡ sắc màu để chụp những bức hình kỷ niệm để đời giữa không gian thiên nhiên trong lành.",
+      transportAdvice: "Tản bộ thong thả giữa các luống chè.",
+      travelMinutes: 5,
+      highlightNote: "Thuê trang phục truyền thống & check-in nương chè (30.000–50.000đ/bộ)",
+      estimatedCostPerPerson: 40000,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-kham-pha"]?.audioFile,
+      audioDuration: "00:28",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-kham-pha"]?.text,
+      audioScriptEn: "Wander through lush green tea trails, try on traditional Muong and Dao costumes for unique keepsake photography.",
+    },
+    {
+      period: "Trưa",
+      timeSlot: "10:00 – 10:45",
+      title: "Di chuyển Long Cốc → Vườn quốc gia Xuân Sơn (~25 km)",
+      type: "travel",
+      activity: "Tạm biệt những đồi chè uốn lượn, xe đưa đoàn di chuyển theo đường liên xã nối sang Vườn quốc gia Xuân Sơn, qua những nếp nhà sàn thanh bình và dãy núi đá vôi kỳ vĩ.",
+      transportAdvice: "Khoảng cách ~25 km, thời gian di chuyển khoảng 40–45 phút.",
+      travelMinutes: 45,
+      highlightNote: "Cung đường rừng nguyên sinh và núi đá vôi hùng vĩ",
+      estimatedCostPerPerson: 0,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["xuan-son-chuyen-tiep"]?.audioFile,
+      audioDuration: "00:26",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["xuan-son-chuyen-tiep"]?.text,
+      audioScriptEn: "Scenic transit along limestone cliffs connecting Long Coc to Xuan Son National Park.",
+    },
+    {
+      period: "Trưa",
+      timeSlot: "10:45 – 12:00",
+      title: "Tham quan Vườn quốc gia Xuân Sơn & Thác Chín Tầng",
+      type: "visit",
+      place: xuanSonPlace,
+      activity: "Khám phá 'lá phổi xanh' quý giá của Phú Thọ: tham quan Bảo tàng Thiên nhiên Xuân Sơn, tản bộ dưới tán rừng nguyên sinh rợp bóng cây cổ thụ nghìn năm, chiêm ngưỡng suối Thác Chín Tầng và Hang Na / Hang Lạng với thạch nhũ muôn hình vạn trạng.",
+      transportAdvice: "Đậu xe tại cổng trung tâm VQG, đi bộ nhẹ nhàng theo đường mòn sinh thái được lát đá an toàn.",
+      travelMinutes: 10,
+      highlightNote: "Hệ sinh thái rừng nhiệt đới trên núi đá vôi & hang động thạch nhũ kỳ thú (Vé vào cổng: 30.000đ/người)",
+      estimatedCostPerPerson: 30000,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["vqg-xuan-son"]?.audioFile,
+      audioDuration: "00:32",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["vqg-xuan-son"]?.text,
+      audioScriptEn: "Explore Xuan Son National Park's pristine karst rainforest, Thac Chin Tang waterfalls, and prehistoric stalactite caves.",
+    },
+    {
+      period: "Trưa",
+      timeSlot: "12:00 – 13:30",
+      title: "Ăn trưa đặc sản tại Nhà hàng Thế Nhé 1 Xuân Sơn",
+      type: "meal",
+      restaurant: {
+        name: "Nhà hàng Thế Nhé 1 – VQG Xuân Sơn",
+        type: "restaurant",
+        distance: "Bản Cỏi / Bản Dù, VQG Xuân Sơn",
+        travelTime: "5 phút",
+        note: "Mâm cỗ lá đại ngàn Xuân Sơn: Gà nhiều cựa nướng than hoa thơm lừng, thịt lợn mán nướng lá móc mật, rau dớn rừng xào tỏi, cá suối chiên giòn rụm và canh măng chua hạt dổi",
+        address: "Khu Bản Dù, Xã Xuân Sơn, Huyện Tân Sơn, Tỉnh Phú Thọ",
+        hours: "09:00 – 22:00",
+        phone: "0975 678 910",
+        image: "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80",
+        taste: "Gà nhiều cựa giòn ngọt thịt săn chắc, rau dớn rừng tươi mơn mởn",
+      },
+      activity: "Thưởng thức bữa trưa đậm đà phong vị núi rừng Tây Bắc bên hiên nhà sàn lộng gió, lắng nghe tiếng suối reo róc rách.",
+      transportAdvice: "Có bãi đỗ xe ô tô và xe máy rộng rãi ngay cổng nhà hàng.",
+      travelMinutes: 5,
+      highlightNote: "Ẩm thực Gà nhiều cựa & Rau dớn rừng tiến Vua (150.000–200.000đ/người)",
+      estimatedCostPerPerson: 180000,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["xuan-son-the-nhe"]?.audioFile,
+      audioDuration: "00:28",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["xuan-son-the-nhe"]?.text,
+      audioScriptEn: "Savor a feast of legendary multi-spurred hill chicken, wild ferns, and crisp stream fish at The Nhe 1 Restaurant.",
+    },
+    {
+      period: "Chiều",
+      timeSlot: "13:30 – 15:30",
+      title: "Khám phá Bản Dù & Văn hóa bản địa Dao Tiền – Mường",
+      type: "visit",
+      place: xuanSonPlace,
+      activity: "Dạo bước qua cây cầu treo gỗ thơ mộng vào Bản Dù: trò chuyện cùng đồng bào Dao Tiền và Mường mộc mạc, tìm hiểu nghề thêu dệt thổ cẩm truyền thống, thưởng thức nước lá thuốc người Dao và mua mật ong rừng nguyên chất, măng đắng về làm quà.",
+      transportAdvice: "Tản bộ ngắm cảnh trong khuôn viên bản làng văn hóa Bản Dù.",
+      travelMinutes: 5,
+      highlightNote: "Trải nghiệm văn hóa bản địa mộc mạc & mua quà mật ong rừng nguyên chất",
+      estimatedCostPerPerson: 50000,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["ban-du-van-hoa"]?.audioFile,
+      audioDuration: "00:30",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["ban-du-van-hoa"]?.text,
+      audioScriptEn: "Stroll across wooden suspension bridges into Ban Du village to experience Dao Tien brocade weaving and indigenous traditions.",
+    },
+    {
+      period: "Chiều",
+      timeSlot: "15:30 – 17:30",
+      title: userLocation
+        ? `Khởi hành trở về vị trí của bạn (~${Math.round(haversineDistance(xuanSonPlace.lat, xuanSonPlace.lng, userLocation.lat, userLocation.lng))} km)`
+        : "Khởi hành VQG Xuân Sơn → TP. Việt Trì (~85 km)",
+      type: "travel",
+      activity: userLocation
+        ? `Đoàn tập trung, lên xe khởi hành trở về điểm xuất phát ban đầu (${userLocation.label || "vị trí của bạn"}). Kết thúc chuyến du lịch sinh thái 1 ngày 'Long Cốc – Xuân Sơn' trọn vẹn và an toàn.`
+        : "Đoàn tập trung lên xe, khởi hành từ VQG Xuân Sơn theo QL32 trở về trung tâm TP. Việt Trì (~85 km, 2 giờ di chuyển). Kết thúc hành trình sinh thái 1 ngày đầy ắp kỷ niệm đẹp.",
+      transportAdvice: userLocation
+        ? `Cự ly ~${Math.round(haversineDistance(xuanSonPlace.lat, xuanSonPlace.lng, userLocation.lat, userLocation.lng))} km. Lái xe an toàn theo lộ trình Google Maps.`
+        : "Cự ly ~85 km (~2 giờ). Đường qua Thanh Sơn, Tam Nông về Việt Trì rộng rãi, êm ái.",
+      travelMinutes: userLocation
+        ? Math.max(45, Math.round(haversineDistance(xuanSonPlace.lat, xuanSonPlace.lng, userLocation.lat, userLocation.lng) * 1.4))
+        : 120,
+      highlightNote: "Hành trình trở về an toàn, kết thúc chuyến du lịch sinh thái tuyệt vời",
+      estimatedCostPerPerson: 0,
+      audioUrl: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-ve-viet-tri"]?.audioFile,
+      audioDuration: "00:32",
+      audioScript: TOUR_AUDIO_GUIDES.tourLongCocXuanSon["long-coc-ve-viet-tri"]?.text,
+      audioScriptEn: "Scenic return drive to Viet Tri concluding our 1-day eco-discovery adventure.",
+    },
+  ];
+
+  const days: ItineraryDay[] = [
+    {
+      dayNumber: 1,
+      dateLabel: lang === "en" ? "Day 1" : "Ngày 1",
+      dayTitle: "Khám phá Ốc Đảo Chè Long Cốc & Đại Ngàn VQG Xuân Sơn",
+      daySummary: "Khởi hành sớm từ Việt Trì lúc 05:30, săn mây và đón bình minh trên đồi chè bát úp Long Cốc, ăn sáng trà Shan tuyết tại Homestay Tony Luận. Trưa vượt đường đèo sang VQG Xuân Sơn thưởng thức mâm cỗ Gà chín cựa nướng tại Nhà hàng Thế Nhé 1, khám phá rừng nguyên sinh, thác Chín Tầng và tìm hiểu văn hóa người Dao Tiền tại Bản Dù trước khi trở về.",
+      slots: day1Slots,
+      dayDistanceKm: 180,
+    },
+  ];
+
+  const totalCostPerPerson = 345000;
+  const travelers = 2;
+
+  const officialGoogleMapsUrl = userLocation
+    ? `https://www.google.com/maps/dir/${userLocation.lat},${userLocation.lng}/Đồi+chè+Long+Cốc/Homestay+Tony+Luận/Vườn+quốc+gia+Xuân+Sơn/Nhà+hàng+Thế+Nhé+Xuân+Sơn/Bản+Dù+Xuân+Sơn/${userLocation.lat},${userLocation.lng}`
+    : "https://www.google.com/maps/dir/TP.+Việt+Trì/Đồi+chè+Long+Cốc/Homestay+Tony+Luận/Vườn+quốc+gia+Xuân+Sơn/Nhà+hàng+Thế+Nhé+Xuân+Sơn/Bản+Dù+Xuân+Sơn/TP.+Việt+Trì";
+
+  return {
+    id: "plan-viet-tri-long-coc-xuan-son-1ngay",
+    title: "Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn (1 Ngày)",
+    subtitle: "Lịch trình sinh thái: Bình minh Ốc Đảo Chè & Đại ngàn Rừng Cổ Thụ",
+    targetDestination: "Long Cốc – VQG Xuân Sơn",
+    region: "Phú Thọ",
+    durationDays: 1,
+    durationLabel: "1 ngày",
+    transport: "Ô tô riêng / Xe máy",
+    style: "Sinh thái & Săn mây",
+    travelers,
+    totalDistanceKm: userLocation
+      ? Math.round(distFromUser + 25 + haversineDistance(xuanSonPlace.lat, xuanSonPlace.lng, userLocation.lat, userLocation.lng))
+      : 180,
+    totalDriveTime: "4 giờ lái xe",
+    estimatedCostPerPerson: totalCostPerPerson,
+    totalCost: totalCostPerPerson * travelers,
+    overviewNarrative: "Hành trình du lịch sinh thái 1 ngày trọn vẹn khám phá 2 kỳ quan thiên nhiên nổi bật nhất đất Phú Thọ: đón bình minh và biển mây bồng bềnh tại 'Vịnh Hạ Long trên cạn' Đồi chè Long Cốc, thưởng thức đặc sản trà Shan tuyết cổ thụ và gà chín cựa nướng than hoa, sau đó hòa mình vào cánh rừng nguyên sinh đại ngàn và văn hóa bản Mường, bản Dao tại Vườn quốc gia Xuân Sơn.",
+    audioGuideScript: "Xin chào quý khách! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi rất hân hạnh đồng hành cùng quý khách trong hành trình khám phá hai viên ngọc sinh thái của Phú Thọ: Đồi chè bát úp Long Cốc và Vườn quốc gia Xuân Sơn. Tại Long Cốc, chúng ta đón bình minh trên những ốc đảo chè xanh ngát bồng bềnh mây sương, thưởng thức bữa sáng ấm nồng trà Shan tuyết cổ thụ. Tiếp đó, cung đường rừng dẫn ta tới VQG Xuân Sơn với hệ sinh thái núi đá vôi kỳ vĩ, thác Chín Tầng, hang động thạch nhũ và mâm cỗ gà chín cựa nướng tại Bản Dù. Chúc quý khách một chuyến đi tràn đầy sức sống và trải nghiệm khó quên!",
+    audioGuideScriptEn: "Welcome to our 1-day eco adventure exploring Long Coc tea hills and Xuan Son National Park! Enjoy sunrise cloud-hunting over rolling green tea mounds and immerse in pristine karst rainforests and Dao ethnic culture.",
+    routeAdvice: "Cung đường: TP. Việt Trì qua QL32 → TT. Thanh Sơn → ĐT316 vào Đồi chè Long Cốc (~70 km) → đường liên xã sang VQG Xuân Sơn (~25 km) → theo QL32 trở về Việt Trì (~85 km). Đường đồi núi quanh co nhưng đã trải nhựa êm thuận, xe máy và ô tô gầm thấp đều đi tốt.",
+    cautionAdvice: "Nên khởi hành sớm lúc 05:30 để ngắm bình minh và săn mây đẹp nhất lúc 06:30–07:30. Mang theo áo khoác nhẹ vì vùng đồi và rừng Xuân Sơn sáng sớm se lạnh. Đi giày thể thao có độ bám tốt để đi dạo nương chè và đường mòn rừng.",
+    days,
+    googleMapsUrl: officialGoogleMapsUrl,
+    originName: userLocation?.label || (userLocation ? "Vị trí thiết bị của bạn" : "TP. Việt Trì"),
+    originCoords: userLocation ? { lat: userLocation.lat, lng: userLocation.lng } : undefined,
   };
 }
 

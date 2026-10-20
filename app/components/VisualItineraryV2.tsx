@@ -9,6 +9,9 @@ export type VisualItineraryV2Props = {
   generatedItinerary: GeneratedItinerary;
   currentLang: LanguageCode;
   t: any;
+  userPosition?: { lat: number; lng: number } | null;
+  onRefreshLocation?: () => void;
+  locationStatus?: "idle" | "unsupported" | "locating" | "success" | "denied";
   formatMoney: (amount: number, currency?: any) => string;
   currentCurrency?: string;
   getRegionLabel: (reg: string, t: any) => string;
@@ -42,6 +45,17 @@ export type VisualItineraryV2Props = {
   toggleBuilderCollapse?: () => void;
   onLanguageChange?: (lang: LanguageCode) => void;
 };
+
+function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
+  const toRad = (value: number) => (value * Math.PI) / 180;
+  const radius = 6371;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return radius * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 export const ITINERARY_I18N: Record<
   LanguageCode,
@@ -415,6 +429,9 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
     generatedItinerary,
     currentLang,
     t,
+    userPosition,
+    onRefreshLocation,
+    locationStatus,
     formatMoney,
     getTransportLabel,
     getLocalizedItineraryTitle,
@@ -450,10 +467,98 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
   const [expandedDayStops, setExpandedDayStops] = useState<Record<number, boolean>>({});
   const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
 
+  // Audio state for specific stop narration (Image 2)
+  const [selectedStopAudioId, setSelectedStopAudioId] = useState<string>("all");
+  const [activePlayingSlotId, setActivePlayingSlotId] = useState<string | null>(null);
+  const [audioPlayProgress, setAudioPlayProgress] = useState<number>(0);
+  const [audioCurrentTimeStr, setAudioCurrentTimeStr] = useState<string>("00:00");
+  const [audioDurationStr, setAudioDurationStr] = useState<string>("02:15");
+  const internalAudioRef = useRef<HTMLAudioElement | null>(null);
+
   const detailPanelRef = useRef<HTMLDivElement>(null);
   const timelineRef = useRef<HTMLDivElement>(null);
 
   const i18n = ITINERARY_I18N[currentLang] || ITINERARY_I18N.vi;
+
+  const stopInternalAudio = () => {
+    if (internalAudioRef.current) {
+      internalAudioRef.current.pause();
+      internalAudioRef.current.src = "";
+      internalAudioRef.current = null;
+    }
+    setActivePlayingSlotId(null);
+    setAudioPlayProgress(0);
+    setAudioCurrentTimeStr("00:00");
+  };
+
+  const playCustomSlotAudio = (slot: ItinerarySlot, slotIdKey: string) => {
+    if (activePlayingSlotId === slotIdKey && internalAudioRef.current) {
+      if (internalAudioRef.current.paused) {
+        internalAudioRef.current.play();
+      } else {
+        internalAudioRef.current.pause();
+      }
+      return;
+    }
+
+    stopAllAudio();
+    stopInternalAudio();
+
+    if (slot.audioUrl) {
+      const audio = new Audio(slot.audioUrl);
+      internalAudioRef.current = audio;
+      audio.volume = audioVolume;
+      audio.playbackRate = audioRate;
+
+      audio.ontimeupdate = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          const pct = Math.min(100, (audio.currentTime / audio.duration) * 100);
+          setAudioPlayProgress(pct);
+          const mins = Math.floor(audio.currentTime / 60);
+          const secs = Math.floor(audio.currentTime % 60);
+          setAudioCurrentTimeStr(`${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`);
+        }
+      };
+
+      audio.onloadedmetadata = () => {
+        if (audio.duration && !isNaN(audio.duration)) {
+          const mins = Math.floor(audio.duration / 60);
+          const secs = Math.floor(audio.duration % 60);
+          setAudioDurationStr(`${mins < 10 ? "0" : ""}${mins}:${secs < 10 ? "0" : ""}${secs}`);
+        }
+      };
+
+      audio.onended = () => {
+        stopInternalAudio();
+      };
+
+      audio.onerror = () => {
+        stopInternalAudio();
+        fallbackTTS(slot);
+      };
+
+      setActivePlayingSlotId(slotIdKey);
+      audio.play().catch(() => {
+        fallbackTTS(slot);
+      });
+      return;
+    }
+
+    fallbackTTS(slot);
+  };
+
+  const fallbackTTS = (slot: ItinerarySlot) => {
+    if (slot.place) {
+      togglePlaceAudio(slot.place);
+    } else {
+      togglePlaceAudio({
+        id: slot.title,
+        name: slot.title,
+        audioScript: slot.audioScript || slot.activity,
+        audioScriptEn: slot.audioScriptEn || slot.activity,
+      } as any);
+    }
+  };
 
   // Reset day and slot when itinerary changes
   useEffect(() => {
@@ -528,8 +633,8 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
   const activeSlotAudioId = activeDetailSlot?.place?.id || `slot-${activeDetailSlot?.timeSlot}-${activeDetailSlot?.title}`;
   const isDetailPlacePlaying = !!((speechPlaceId === activeSlotAudioId || (activeDetailSlot?.place && speechPlaceId === activeDetailSlot.place.id)) && audioState === "playing");
 
-  const googleMapsSearchUrl = activeDetailSlot?.place
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${activeDetailSlot.place.name} ${activeDetailSlot.place.location}`)}`
+  const googleMapsDirectionsUrl = activeDetailSlot?.place
+    ? `https://www.google.com/maps/dir/?api=1${userPosition ? `&origin=${userPosition.lat},${userPosition.lng}` : ""}&destination=${activeDetailSlot.place.lat},${activeDetailSlot.place.lng}`
     : generatedItinerary.googleMapsUrl;
 
   return (
@@ -537,6 +642,49 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
       {/* 1. TOP UTILITY ACTION BAR */}
       <div className="v2-action-bar">
         <div className="v2-action-group">
+          {/* Departure Origin Indicator */}
+          <div
+            className="v2-origin-badge"
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "6px",
+              background: userPosition ? "rgba(45, 106, 79, 0.08)" : "rgba(217, 119, 6, 0.08)",
+              border: `1px solid ${userPosition ? "rgba(45, 106, 79, 0.25)" : "rgba(217, 119, 6, 0.25)"}`,
+              padding: "5px 12px",
+              borderRadius: "999px",
+              fontSize: "12px",
+              fontWeight: 700,
+            }}
+          >
+            <span style={{ color: userPosition ? "#2d6a4f" : "#d97706" }}>
+              {userPosition ? "📍" : "🚩"} {currentLang === "en" ? "Departure:" : "Xuất phát:"}
+            </span>
+            <b style={{ color: userPosition ? "#1b4332" : "#92400e" }}>
+              {generatedItinerary.originName || (userPosition ? (currentLang === "en" ? "Your Device Location" : "Vị trí thiết bị của bạn") : "TP. Việt Trì")}
+            </b>
+            {onRefreshLocation && (
+              <button
+                type="button"
+                onClick={onRefreshLocation}
+                title={currentLang === "en" ? "Update GPS location" : "Cập nhật vị trí GPS từ thiết bị"}
+                style={{
+                  background: "transparent",
+                  border: 0,
+                  cursor: "pointer",
+                  fontSize: "12px",
+                  padding: "0 2px",
+                  color: "#2d6a4f",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  fontWeight: 800,
+                }}
+              >
+                🔄 {currentLang === "en" ? "Update GPS" : "Cập nhật GPS"}
+              </button>
+            )}
+          </div>
+
           {toggleBuilderCollapse && (
             <button
               type="button"
@@ -855,7 +1003,11 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
               const isSelected = activeDetailSlot === slot;
               const tag = getSlotCategoryTag(slot, currentLang);
               const startTime = slot.timeSlot.split("–")[0]?.trim() || "07:30";
-              const driveKm = slot.place ? Math.max(1, Math.round(slot.place.distanceFromVietTri * 0.4 || 12)) : 12;
+              const driveKm = slot.place
+                ? (userPosition && sIdx === 0 && activeItineraryDay === 1
+                    ? Math.max(1, Math.round(haversineKm(userPosition.lat, userPosition.lng, slot.place.lat, slot.place.lng)))
+                    : Math.max(1, Math.round(slot.place.distanceFromVietTri * 0.4 || 12)))
+                : 12;
               const driveMinutes = slot.travelMinutes || 45;
               const minuteUnit = currentLang === "en" ? "mins" : currentLang === "zh" ? "分钟" : currentLang === "ko" ? "분" : currentLang === "ja" ? "分" : "phút";
               const mealTypeLabel = currentLang === "en" ? "🍜 Local Specialties" : currentLang === "zh" ? "🍜 地道风味" : currentLang === "ko" ? "🍜 현지 특산 요리" : currentLang === "ja" ? "🍜 郷土料理" : "🍜 Đặc sản địa phương";
@@ -892,7 +1044,26 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                     <div className="v2-card__content">
                       {/* Dòng 1: Tag phân loại & Giá tiền */}
                       <div className="v2-card__head">
-                        <span className={`v2-tag v2-tag--${tag.modifier}`}>{tag.label}</span>
+                        <div style={{ display: "flex", gap: "6px", alignItems: "center", flexWrap: "wrap" }}>
+                          <span className={`v2-tag v2-tag--${tag.modifier}`}>{tag.label}</span>
+                          {slot.isAutoSuggested ? (
+                            <span
+                              className="v2-tag v2-tag--suggested"
+                              style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a" }}
+                              title="Điểm do hệ thống đề xuất bổ sung"
+                            >
+                              💡 Điểm gợi ý bổ sung
+                            </span>
+                          ) : slot.place ? (
+                            <span
+                              className="v2-tag v2-tag--chosen"
+                              style={{ background: "#ecfdf5", color: "#065f46", border: "1px solid #a7f3d0" }}
+                              title="Điểm nằm trong danh sách bạn đã chọn"
+                            >
+                              ⭐ Điểm đã chọn
+                            </span>
+                          ) : null}
+                        </div>
                         <span className="v2-card__cost">
                           {formatMoney(slot.estimatedCostPerPerson)}/{t.tripPerson}
                         </span>
@@ -926,8 +1097,8 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                         </span>
                       </div>
 
-                      {/* Dòng 6: Nút Xem chi tiết */}
-                      <div className="v2-card__foot">
+                      {/* Dòng 6: Nút Xem chi tiết & Nút Thuyết minh riêng từng điểm (Ảnh 2) */}
+                      <div className="v2-card__foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
                         <button
                           type="button"
                           className="v2-expand-btn"
@@ -938,6 +1109,44 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                         >
                           <span>{i18n.viewDetail}</span>
                           <span className="v2-expand-arrow">⌵</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          className={`v2-card-audio-pill ${activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}` ? "is-active" : ""}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playCustomSlotAudio(slot, `slot-${activeItineraryDay}-${sIdx}`);
+                            setSelectedStopAudioId(`slot-${sIdx}`);
+                          }}
+                          title="Nghe hướng dẫn viên thuyết minh về điểm này"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 12px",
+                            borderRadius: "999px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            background:
+                              activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}`
+                                ? "var(--brand-primary, #0f5132)"
+                                : "rgba(15, 81, 50, 0.08)",
+                            color:
+                              activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}`
+                                ? "#ffffff"
+                                : "var(--brand-primary, #0f5132)",
+                            border: "1px solid rgba(15, 81, 50, 0.2)",
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <span>{activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}` ? "⏸" : "🎧"}</span>
+                          <span>
+                            {activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}`
+                              ? "Đang thuyết minh..."
+                              : (slot.audioDuration ? `Thuyết minh (${slot.audioDuration})` : "Nghe thuyết minh")}
+                          </span>
                         </button>
                       </div>
                     </div>
@@ -991,55 +1200,184 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                   <p className="v2-night-desc">
                     <b>{i18n.amenitiesExp}</b> {currentDayPlan.stayForNight.note || "Phòng nghỉ tiện nghi, ẩm thực bản địa chu đáo"}
                   </p>
-                  <div className="v2-night-foot">
+                  <div className="v2-night-foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                     <span className="v2-night-addr">📍 {currentDayPlan.stayForNight.address}</span>
-                    <a
-                      href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                        currentDayPlan.stayForNight.name + " " + currentDayPlan.stayForNight.address
-                      )}`}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="v2-night-map-btn"
-                    >
-                      {i18n.directionsToStay}
-                    </a>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                      <button
+                        type="button"
+                        className={`v2-card-audio-pill ${activePlayingSlotId === "night-stay" ? "is-active" : ""}`}
+                        onClick={() => {
+                          const staySlot =
+                            allSlots.find((s) => s.audioUrl?.includes("thanh_thuy")) ||
+                            allSlots.find((s) => s.type === "stay") ||
+                            allSlots[0];
+                          playCustomSlotAudio(staySlot, "night-stay");
+                          setSelectedStopAudioId("night-stay");
+                        }}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "6px 14px",
+                          borderRadius: "999px",
+                          fontSize: "12px",
+                          fontWeight: 600,
+                          background: activePlayingSlotId === "night-stay" ? "#ffffff" : "rgba(255, 255, 255, 0.2)",
+                          color: activePlayingSlotId === "night-stay" ? "var(--brand-primary, #0f5132)" : "#ffffff",
+                          border: "1px solid rgba(255, 255, 255, 0.4)",
+                          cursor: "pointer",
+                        }}
+                        title={`Nghe thuyết minh về ${currentDayPlan.stayForNight.name}`}
+                      >
+                        <span>{activePlayingSlotId === "night-stay" ? "⏸" : "🎧"}</span>
+                        <span>{activePlayingSlotId === "night-stay" ? "Đang thuyết minh..." : `Nghe thuyết minh về chỗ nghỉ`}</span>
+                      </button>
+                      <a
+                        href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          currentDayPlan.stayForNight.name + " " + currentDayPlan.stayForNight.address
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="v2-night-map-btn"
+                      >
+                        {i18n.directionsToStay}
+                      </a>
+                    </div>
                   </div>
                 </div>
               </div>
             )}
 
-            {/* Audio Guide Player - Lời dẫn hướng dẫn viên toàn chặng */}
+            {/* Audio Guide Player - Lời dẫn hướng dẫn viên toàn chặng & Từng điểm dừng (Ảnh 2) */}
             <div className="v2-timeline-item v2-timeline-item--audio">
               <div className="v2-timeline-node">
                 <span className="v2-timeline-dot"></span>
               </div>
-              <div className="v2-audio-card">
-                <div className="v2-audio-speaker-wrap">
-                  <span>🔊</span>
-                </div>
-                <div className="v2-audio-info">
-                  <b>{i18n.guideNarration}</b>
-                  <small>
-                    {currentDayPlan?.dayTitle || generatedItinerary.title} – {i18n.twoMinStory}
-                  </small>
-                </div>
-                <button
-                  type="button"
-                  className={`v2-audio-play-btn ${audioGuidePlaying ? "is-playing" : ""}`}
-                  onClick={toggleItineraryAudio}
-                  title={audioGuidePlaying ? t.audioPause : t.audioListen}
-                  aria-label={audioGuidePlaying ? t.audioPause : t.audioListen}
-                >
-                  {audioGuidePlaying ? "⏸" : "▶"}
-                </button>
-                <div className="v2-audio-scrubber">
-                  <div className="v2-audio-track" onClick={toggleItineraryAudio}>
-                    <div
-                      className="v2-audio-progress"
-                      style={{ width: audioGuidePlaying ? "75%" : "40%" }}
-                    ></div>
+              <div className="v2-audio-card" style={{ display: "flex", flexDirection: "column", gap: "10px", alignItems: "stretch" }}>
+                {/* Selector chọn nghe theo từng điểm dừng cụ thể (Khắc phục theo Ảnh 2) */}
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px", flexWrap: "wrap", borderBottom: "1px dashed rgba(15, 81, 50, 0.2)", paddingBottom: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <span style={{ fontSize: "14px" }}>🎯</span>
+                    <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--brand-primary, #0f5132)" }}>
+                      Chọn điểm thuyết minh:
+                    </span>
                   </div>
-                  <span className="v2-audio-time">{audioGuidePlaying ? i18n.nowPlaying : "02:15"}</span>
+                  {activePlayingSlotId && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        stopAllAudio();
+                        stopInternalAudio();
+                      }}
+                      style={{ fontSize: "11px", color: "#dc2626", background: "none", border: "none", cursor: "pointer", fontWeight: 600 }}
+                    >
+                      ⏹ Dừng phát
+                    </button>
+                  )}
+                  <select
+                    className="v2-audio-stop-select"
+                    value={selectedStopAudioId}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedStopAudioId(val);
+                      if (val === "all") {
+                        stopInternalAudio();
+                        toggleItineraryAudio();
+                      } else {
+                        const idx = parseInt(val.replace("slot-", ""), 10);
+                        const sl = allSlots[idx];
+                        if (sl) {
+                          playCustomSlotAudio(sl, `slot-${activeItineraryDay}-${idx}`);
+                        }
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: "1px solid #cbd5e1",
+                      background: "#ffffff",
+                      fontSize: "13px",
+                      fontWeight: 500,
+                      color: "#1e293b",
+                      cursor: "pointer",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="all">🌟 Toàn bộ hành trình ngày {activeItineraryDay} (Thuyết minh tổng quan 2 phút)</option>
+                    {allSlots.map((slot, idx) => (
+                      <option key={idx} value={`slot-${idx}`}>
+                        📍 {idx + 1}. {slot.title} {slot.audioDuration ? `(${slot.audioDuration})` : ""}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div className="v2-audio-speaker-wrap">
+                    <span>🔊</span>
+                  </div>
+                  <div className="v2-audio-info" style={{ flex: 1 }}>
+                    <b>{i18n.guideNarration}</b>
+                    <small>
+                      {activePlayingSlotId
+                        ? (allSlots[parseInt(selectedStopAudioId.replace("slot-", ""), 10)]?.title || "Điểm đang thuyết minh")
+                        : (currentDayPlan?.dayTitle || generatedItinerary.title)}
+                    </small>
+                  </div>
+                  <button
+                    type="button"
+                    className={`v2-audio-play-btn ${audioGuidePlaying || !!activePlayingSlotId ? "is-playing" : ""}`}
+                    onClick={() => {
+                      if (selectedStopAudioId === "all") {
+                        toggleItineraryAudio();
+                      } else {
+                        const idx = parseInt(selectedStopAudioId.replace("slot-", ""), 10);
+                        const sl = allSlots[idx] || allSlots[0];
+                        if (sl) {
+                          playCustomSlotAudio(sl, `slot-${activeItineraryDay}-${idx}`);
+                        }
+                      }
+                    }}
+                    title={audioGuidePlaying || !!activePlayingSlotId ? t.audioPause : t.audioListen}
+                    aria-label={audioGuidePlaying || !!activePlayingSlotId ? t.audioPause : t.audioListen}
+                  >
+                    {audioGuidePlaying || !!activePlayingSlotId ? "⏸" : "▶"}
+                  </button>
+                  <div className="v2-audio-scrubber">
+                    <div
+                      className="v2-audio-track"
+                      onClick={() => {
+                        if (selectedStopAudioId === "all") {
+                          toggleItineraryAudio();
+                        } else {
+                          const idx = parseInt(selectedStopAudioId.replace("slot-", ""), 10);
+                          const sl = allSlots[idx] || allSlots[0];
+                          if (sl) {
+                            playCustomSlotAudio(sl, `slot-${activeItineraryDay}-${idx}`);
+                          }
+                        }
+                      }}
+                    >
+                      <div
+                        className="v2-audio-progress"
+                        style={{
+                          width: activePlayingSlotId
+                            ? `${audioPlayProgress}%`
+                            : audioGuidePlaying
+                            ? "75%"
+                            : "40%",
+                        }}
+                      ></div>
+                    </div>
+                    <span className="v2-audio-time">
+                      {activePlayingSlotId
+                        ? `${audioCurrentTimeStr} / ${audioDurationStr}`
+                        : audioGuidePlaying
+                        ? i18n.nowPlaying
+                        : "02:15"}
+                    </span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1124,7 +1462,7 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
 
                 {/* 🚗 Di chuyển & thể loại */}
                 <div className="v2-detail-meta-row">
-                  <span>🚗 {activeDetailSlot.travelMinutes || 45} {currentLang === "en" ? "mins" : currentLang === "zh" ? "分钟" : currentLang === "ko" ? "분" : currentLang === "ja" ? "分" : "phút"} · {activeDetailSlot.place ? Math.max(1, Math.round(activeDetailSlot.place.distanceFromVietTri * 0.4 || 12)) : 12} km</span>
+                  <span>🚗 {activeDetailSlot.travelMinutes || 45} {currentLang === "en" ? "mins" : currentLang === "zh" ? "分钟" : currentLang === "ko" ? "분" : currentLang === "ja" ? "分" : "phút"} · {activeDetailSlot.place ? (userPosition ? `${Math.max(1, Math.round(haversineKm(userPosition.lat, userPosition.lng, activeDetailSlot.place.lat, activeDetailSlot.place.lng)))} km (${currentLang === "en" ? "from device" : "từ vị trí của bạn"})` : `${Math.max(1, Math.round(activeDetailSlot.place.distanceFromVietTri * 0.4 || 12))} km`) : "12 km"}</span>
                   <span className="v2-meta-badge">
                     {activeDetailSlot.type === "meal" ? (currentLang === "en" ? "🍜 Dining" : currentLang === "zh" ? "🍜 美食餐饮" : currentLang === "ko" ? "🍜 미식" : currentLang === "ja" ? "🍜 グルメ" : "🍜 Ăn uống") : (currentLang === "en" ? "🎟️ Sightseeing" : currentLang === "zh" ? "🎟️ 观光游览" : currentLang === "ko" ? "🎟️ 관광" : currentLang === "ja" ? "🎟️ 観光" : "🎟️ Tham quan")}
                   </span>
@@ -1202,9 +1540,11 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
 
                     <button
                       type="button"
-                      className={`v2-listen-guide-btn ${isDetailPlacePlaying ? "is-playing" : ""}`}
+                      className={`v2-listen-guide-btn ${isDetailPlacePlaying || activePlayingSlotId === activeDetailSlot.title ? "is-playing" : ""}`}
                       onClick={() => {
-                        if (currentSlotAudio) {
+                        if (activeDetailSlot.audioUrl) {
+                          playCustomSlotAudio(activeDetailSlot, activeDetailSlot.title);
+                        } else if (currentSlotAudio) {
                           togglePlaceAudio({
                             id: activeSlotAudioId,
                             name: activeDetailSlot.title,
@@ -1218,7 +1558,7 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                         }
                       }}
                     >
-                      <span>{isDetailPlacePlaying ? i18n.pauseGuide : i18n.listenGuide}</span>
+                      <span>{isDetailPlacePlaying || activePlayingSlotId === activeDetailSlot.title ? i18n.pauseGuide : i18n.listenGuide}</span>
                     </button>
                   </div>
                 </div>
@@ -1226,7 +1566,7 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                 {/* 4. CHÂN BẢNG: 2 NÚT HÀNH ĐỘNG "CHỈ ĐƯỜNG" & "LƯU" */}
                 <div className="v2-detail-action-footer">
                   <a
-                    href={googleMapsSearchUrl}
+                    href={googleMapsDirectionsUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="v2-action-cta v2-action-cta--map"

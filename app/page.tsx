@@ -21,7 +21,7 @@ import {
 } from "@/data/travel";
 import { culturalEvents } from "@/data/events";
 import { tourTemplates, type TourTemplate } from "@/data/itineraryTemplates";
-import { buildItinerary, getOfficialDocxItinerary, DISTRICT_TRAVEL_GUIDES, type GeneratedItinerary } from "@/lib/guidePlanner";
+import { buildItinerary, getOfficialDocxItinerary, getOfficialLongCocXuanSonItinerary, DISTRICT_TRAVEL_GUIDES, type GeneratedItinerary } from "@/lib/guidePlanner";
 import { getAllDistrictPlaces, getDistrictTravelGuide } from "@/lib/districtPlaceGenerator";
 import VisualItineraryV2 from "./components/VisualItineraryV2";
 import AiChatbotWidget from "./components/AiChatbotWidget";
@@ -3023,6 +3023,57 @@ export const TRAVEL_CHALLENGE_REWARDS: TravelReward[] = [
   },
 ];
 
+export const OFFICIAL_SAMPLE_LONG_COC_XUAN_SON = [
+  {
+    time: "05:30 – 07:00",
+    title: "Khởi hành từ trung tâm TP. Việt Trì",
+    subtitle: "Lái xe theo QL32 → ĐT316 (~70 km) đến ốc đảo chè Long Cốc đón bình minh",
+    tag: "Khởi hành sớm",
+    cost: "Miễn phí",
+    image: "/images/places/viet-tri.jpg",
+  },
+  {
+    time: "07:00 – 08:30",
+    title: "Săn mây Đồi chè Long Cốc & Điểm tâm",
+    subtitle: "Check-in biển mây đồi chè bát úp & ăn sáng trà Shan tuyết Homestay Tony Luận",
+    tag: "Săn mây & Điểm tâm",
+    cost: "35.000–50.000đ",
+    image: "/images/places/long-coc.png",
+  },
+  {
+    time: "08:30 – 11:30",
+    title: "Chuyển tiếp & Khám phá VQG Xuân Sơn",
+    subtitle: "Trekking rừng nhiệt đới đá vôi nguyên sinh, thác Chín Tầng & Hang Lạng",
+    tag: "Sinh thái đại ngàn",
+    cost: "Vé vào cửa 40.000đ",
+    image: "/images/places/xuan-son.jpg",
+  },
+  {
+    time: "11:30 – 13:00",
+    title: "Ẩm thực đại ngàn Nhà hàng Thế Nhé 1",
+    subtitle: "Thưởng thức Gà chín cựa nướng than hoa, rau dớn rừng & cá suối chiên giòn",
+    tag: "Đặc sản tiến Vua",
+    cost: "150.000–200.000đ",
+    image: "/images/places/xuan-son.jpg",
+  },
+  {
+    time: "13:00 – 15:30",
+    title: "Khám phá Bản Dù & Văn hóa Dao Tiền",
+    subtitle: "Dạo cầu treo, giao lưu đồng bào Mường – Dao, tìm hiểu dệt thổ cẩm & mua mật ong",
+    tag: "Bản làng văn hóa",
+    cost: "50.000đ",
+    image: "/images/places/xuan-son.jpg",
+  },
+  {
+    time: "15:30 – 17:30",
+    title: "Khởi hành trở về Việt Trì",
+    subtitle: "Đoàn tập trung theo QL32 trở về Việt Trì (~85 km), khép lại chuyến đi trọn vẹn",
+    tag: "Kết thúc tour",
+    cost: "Miễn phí",
+    image: "/images/places/viet-tri.jpg",
+  },
+];
+
 export const OFFICIAL_SAMPLE_TOUR_DAY1 = [
   {
     time: "07:30",
@@ -3125,6 +3176,8 @@ export default function Home() {
   const [serverResultIds, setServerResultIds] = useState<string[] | null>(null);
   const [isServerSearching, setIsServerSearching] = useState(false);
   const [teaserDay, setTeaserDay] = useState<1 | 2>(1);
+  const [teaserTour, setTeaserTour] = useState<"tour-2n1d" | "tour-long-coc">("tour-2n1d");
+  const [strictSelectedOnly, setStrictSelectedOnly] = useState<boolean>(false);
   
   // Storage states
   const [favorites, setFavorites] = useState<string[]>([]);
@@ -4538,7 +4591,20 @@ export default function Home() {
   }, [appliedVoucher, cartSubtotal]);
 
   const finalCartTotal = Math.max(0, cartSubtotal - voucherDiscount);
-  const t = UI_TEXT[currentLang] || UI_TEXT.vi;
+  const rawT = UI_TEXT[currentLang] || UI_TEXT.vi;
+  const t = useMemo(() => {
+    return new Proxy(rawT, {
+      get(target: any, prop: string) {
+        if (prop in target && target[prop] !== undefined) {
+          return target[prop];
+        }
+        if (prop in UI_TEXT.vi && (UI_TEXT.vi as any)[prop] !== undefined) {
+          return (UI_TEXT.vi as any)[prop];
+        }
+        return prop;
+      },
+    });
+  }, [rawT]);
   const locationMessage = locationStatus === "unsupported" ? t.nearLocationUnsupported : locationStatus === "locating" ? t.nearLocationLocating : locationStatus === "success" ? t.nearLocationSuccess : locationStatus === "denied" ? t.nearLocationDenied : t.nearLocationNotEnabled;
   const formatPrice = (amount: number) => formatMoney(amount, currentCurrency);
 
@@ -5051,6 +5117,7 @@ export default function Home() {
       budget,
       style: interest,
       travelers,
+      strictSelectedOnly,
     });
     setGeneratedItinerary(res);
     setIsBuilderCollapsed(true);
@@ -5059,12 +5126,22 @@ export default function Home() {
 
   const handleApplyTourTemplate = (tmpl: TourTemplate) => {
     stopAllAudio();
-    if (tmpl.id === "tour-viet-tri-den-hung-thanh-thuy-tam-dao-2n1d") {
+    const userLoc = position ? { lat: position.lat, lng: position.lng, label: "Vị trí của bạn" } : undefined;
+    if (tmpl.id === "tour-viet-tri-den-hung-thanh-thuy-tam-dao-2n1d" || tmpl.id.includes("2n1d") || tmpl.title.includes("2 ngày 1 đêm")) {
       setTargetPlaceId("den-hung");
       setDays(2);
       setTransport("Ô tô riêng");
       setInterest("Di sản & Nghỉ dưỡng");
-      setGeneratedItinerary(getOfficialDocxItinerary());
+      setGeneratedItinerary(getOfficialDocxItinerary(currentLang, userLoc));
+      showToast(`✦ Đã áp dụng: ${tmpl.title}`);
+      return;
+    }
+    if (tmpl.id.includes("long-coc") || tmpl.id.includes("xuan-son") || (tmpl.title.includes("Long Cốc") && tmpl.title.includes("Xuân Sơn"))) {
+      setTargetPlaceId("long-coc");
+      setDays(tmpl.durationDays || 1);
+      setTransport("Ô tô riêng");
+      setInterest("Thiên nhiên & Sinh thái");
+      setGeneratedItinerary(getOfficialLongCocXuanSonItinerary(currentLang, userLoc));
       showToast(`✦ Đã áp dụng: ${tmpl.title}`);
       return;
     }
@@ -6864,14 +6941,37 @@ export default function Home() {
               </div>
               {!position && <button className="location-link" onClick={locate}>{t.locateBtn}</button>}
             </div>
-            {matchingFoodDishes.length > 0 && <div className="commerce-search-results">{matchingFoodDishes.map((dish) => renderFoodMarket(dish, "search"))}</div>}
+            {/* NHÓM 1: ẨM THỰC & ĐẶC SẢN OCOP */}
+            {matchingFoodDishes.length > 0 && (
+              <div style={{ marginBottom: "28px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", borderBottom: "2px solid rgba(22, 101, 52, 0.15)", paddingBottom: "8px" }}>
+                  <span style={{ fontSize: "20px" }}>🍜</span>
+                  <h3 style={{ fontSize: "17px", fontWeight: 700, margin: 0, color: "#166534" }}>
+                    Ẩm thực & Đặc sản OCOP ({matchingFoodDishes.length})
+                  </h3>
+                </div>
+                <div className="commerce-search-results">
+                  {matchingFoodDishes.map((dish) => renderFoodMarket(dish, "search"))}
+                </div>
+              </div>
+            )}
+
+            {/* NHÓM 2: ĐỊA ĐIỂM DU LỊCH & TRẢI NGHIỆM */}
             {filteredPlaces.length ? (
-              <>
+              <div>
+                {query && matchingFoodDishes.length > 0 && (
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "14px", marginTop: "12px", borderBottom: "2px solid rgba(184, 134, 11, 0.2)", paddingBottom: "8px" }}>
+                    <span style={{ fontSize: "20px" }}>📍</span>
+                    <h3 style={{ fontSize: "17px", fontWeight: 700, margin: 0, color: "#854d0e" }}>
+                      Địa điểm du lịch & Trải nghiệm ({filteredPlaces.length})
+                    </h3>
+                  </div>
+                )}
                 <div className="place-grid">{filteredPlaces.slice(0, visibleCount).map((place) => renderPlaceCard(place))}</div>
                 {filteredPlaces.length > visibleCount && (
                   <button className="load-more" onClick={() => setVisibleCount((count) => count + 4)}>{t.loadMorePlaces}</button>
                 )}
-              </>
+              </div>
             ) : matchingFoodDishes.length === 0 ? (
               <div className="empty-state"><b>{t.noResultsTitle}</b><span>{t.noResultsDesc}</span></div>
             ) : null}
@@ -6914,44 +7014,106 @@ export default function Home() {
             </div>
 
             <div className="mini-itinerary modern-official-card">
+              {/* BỘ CHỌN TUYẾN DU LỊCH CHÍNH THỨC */}
+              <div style={{ display: "flex", gap: "8px", padding: "12px 16px 0", borderBottom: "1px solid rgba(255,255,255,0.08)" }}>
+                <button
+                  type="button"
+                  onClick={() => setTeaserTour("tour-2n1d")}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: "8px 8px 0 0",
+                    border: 0,
+                    fontWeight: 700,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    background: teaserTour === "tour-2n1d" ? "rgba(212, 175, 55, 0.2)" : "transparent",
+                    color: teaserTour === "tour-2n1d" ? "#fef08a" : "#94a3b8",
+                    borderBottom: teaserTour === "tour-2n1d" ? "2px solid #facc15" : "2px solid transparent",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  ⭐ Tour 2N1Đ (Đền Hùng · Onsen · Tam Đảo)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTeaserTour("tour-long-coc")}
+                  style={{
+                    flex: 1,
+                    padding: "8px 12px",
+                    borderRadius: "8px 8px 0 0",
+                    border: 0,
+                    fontWeight: 700,
+                    fontSize: "12.5px",
+                    cursor: "pointer",
+                    background: teaserTour === "tour-long-coc" ? "rgba(34, 197, 94, 0.2)" : "transparent",
+                    color: teaserTour === "tour-long-coc" ? "#86efac" : "#94a3b8",
+                    borderBottom: teaserTour === "tour-long-coc" ? "2px solid #4ade80" : "2px solid transparent",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  🍃 Tour 1N (Long Cốc · VQG Xuân Sơn)
+                </button>
+              </div>
+
               <div className="mini-itinerary__top">
                 <div className="mini-itinerary__head-info">
                   <div className="mini-itinerary__badge-row">
-                    <span className="mini-itinerary__badge">LỊCH TRÌNH MẪU CHUẨN</span>
-                    <span className="mini-itinerary__subbadge">Hồ sơ gốc</span>
+                    <span className="mini-itinerary__badge">
+                      {teaserTour === "tour-2n1d" ? "LỊCH TRÌNH MẪU CHUẨN" : "SINH THÁI ĐẠI NGÀN"}
+                    </span>
+                    <span className="mini-itinerary__subbadge">
+                      {teaserTour === "tour-2n1d" ? "Hồ sơ 2N1Đ · Audio" : "Hồ sơ 1 Ngày · Audio"}
+                    </span>
                   </div>
-                  <h3 className="mini-itinerary__title">Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo</h3>
+                  <h3 className="mini-itinerary__title">
+                    {teaserTour === "tour-2n1d"
+                      ? "Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo"
+                      : "Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn"}
+                  </h3>
                 </div>
                 <div className="mini-itinerary__duration">
-                  <b>2N1Đ</b>
-                  <small>2 ngày 1 đêm</small>
+                  <b>{teaserTour === "tour-2n1d" ? "2N1Đ" : "1 Ngày"}</b>
+                  <small>{teaserTour === "tour-2n1d" ? "2 ngày 1 đêm" : "Trong ngày"}</small>
                 </div>
               </div>
 
               {/* Bộ chuyển Ngày 1 / Ngày 2 */}
-              <div className="mini-itinerary__day-tabs">
-                <button
-                  type="button"
-                  className={`mini-itinerary__day-tab ${teaserDay === 1 ? "mini-itinerary__day-tab--active" : ""}`}
-                  onClick={() => setTeaserDay(1)}
-                >
-                  <span className="mini-day-badge">Ngày 1</span>
-                  <span className="mini-day-text">Việt Trì · Đền Hùng · Onsen Thanh Thủy</span>
-                </button>
-                <button
-                  type="button"
-                  className={`mini-itinerary__day-tab ${teaserDay === 2 ? "mini-itinerary__day-tab--active" : ""}`}
-                  onClick={() => setTeaserDay(2)}
-                >
-                  <span className="mini-day-badge">Ngày 2</span>
-                  <span className="mini-day-text">Thanh Thủy · Săn mây Tam Đảo · Việt Trì</span>
-                </button>
-              </div>
+              {teaserTour === "tour-2n1d" ? (
+                <div className="mini-itinerary__day-tabs">
+                  <button
+                    type="button"
+                    className={`mini-itinerary__day-tab ${teaserDay === 1 ? "mini-itinerary__day-tab--active" : ""}`}
+                    onClick={() => setTeaserDay(1)}
+                  >
+                    <span className="mini-day-badge">Ngày 1</span>
+                    <span className="mini-day-text">Việt Trì · Đền Hùng · Onsen Thanh Thủy</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`mini-itinerary__day-tab ${teaserDay === 2 ? "mini-itinerary__day-tab--active" : ""}`}
+                    onClick={() => setTeaserDay(2)}
+                  >
+                    <span className="mini-day-badge">Ngày 2</span>
+                    <span className="mini-day-text">Thanh Thủy · Săn mây Tam Đảo · Việt Trì</span>
+                  </button>
+                </div>
+              ) : (
+                <div style={{ padding: "10px 16px", background: "rgba(34, 197, 94, 0.08)", fontSize: "12.5px", color: "#86efac", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>🌅</span>
+                  <span>Đón bình minh ốc đảo chè bát úp, thưởng trà Shan tuyết, mâm cỗ Gà chín cựa & bản sắc Dao Tiền</span>
+                </div>
+              )}
 
               {/* Danh sách các chặng dừng trong ngày */}
               <div className="mini-itinerary__stops">
-                {(teaserDay === 1 ? OFFICIAL_SAMPLE_TOUR_DAY1 : OFFICIAL_SAMPLE_TOUR_DAY2).map((stop, index) => (
-                  <div className="mini-stop mini-stop--upgraded" key={`${teaserDay}-${index}`}>
+                {(teaserTour === "tour-long-coc"
+                  ? OFFICIAL_SAMPLE_LONG_COC_XUAN_SON
+                  : teaserDay === 1
+                  ? OFFICIAL_SAMPLE_TOUR_DAY1
+                  : OFFICIAL_SAMPLE_TOUR_DAY2
+                ).map((stop, index) => (
+                  <div className="mini-stop mini-stop--upgraded" key={`${teaserTour}-${teaserDay}-${index}`}>
                     <span className="mini-stop__time">{stop.time}</span>
                     <span className="mini-stop__dot" />
                     <div className="mini-stop__img-box">
@@ -6972,20 +7134,33 @@ export default function Home() {
               {/* Chân thẻ: Tóm tắt lộ trình & Nút mở chi tiết */}
               <div className="mini-itinerary__footer">
                 <div className="mini-itinerary__footer-summary">
-                  <span>⌁ Tuyến liên kết thuận tiện đường sá (~140 km)</span>
-                  <span>Dự toán: ~1.400.000 – 1.850.000đ/người</span>
+                  <span>
+                    {teaserTour === "tour-2n1d"
+                      ? "⌁ Tuyến liên kết thuận tiện đường sá (~140 km)"
+                      : "⌁ Tuyến sinh thái săn mây & rừng đại ngàn (~180 km)"}
+                  </span>
+                  <span>
+                    {teaserTour === "tour-2n1d"
+                      ? "Dự toán: ~1.400.000 – 1.850.000đ/người"
+                      : "Dự toán: ~345.000 – 550.000đ/người"}
+                  </span>
                 </div>
                 <button
                   type="button"
                   className="mini-itinerary__action-btn"
                   onClick={() => {
-                    handleApplyTourTemplate(tourTemplates[0]);
+                    const targetTmpl = teaserTour === "tour-2n1d"
+                      ? tourTemplates[0]
+                      : (tourTemplates.find(t => t.id.includes("long-coc")) || tourTemplates[1] || tourTemplates[0]);
+                    handleApplyTourTemplate(targetTmpl);
                     setActiveTab("trip");
                     setIsBuilderCollapsed(true);
                     window.scrollTo({ top: 0, behavior: "smooth" });
                   }}
                 >
-                  Mở Toàn Bộ Lịch Trình Chi Tiết & Nghe Thuyết Minh →
+                  {teaserTour === "tour-2n1d"
+                    ? "Mở Toàn Bộ Lịch Trình Chi Tiết & Nghe Thuyết Minh →"
+                    : "Mở Lịch Trình Long Cốc – Xuân Sơn & Nghe Thuyết Minh →"}
                 </button>
               </div>
             </div>
@@ -7312,11 +7487,12 @@ export default function Home() {
                   type="button"
                   onClick={() => {
                     stopAllAudio();
+                    setTargetPlaceId("den-hung");
                     setDays(2);
                     setTransport("Ô tô riêng");
                     setInterest("Di sản & Nghỉ dưỡng");
-                    setGeneratedItinerary(getOfficialDocxItinerary());
-                    showToast("⭐ Đã tải Lịch trình chuẩn 2N1Đ (Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo) theo tài liệu!");
+                    setGeneratedItinerary(getOfficialDocxItinerary(currentLang, position ? { lat: position.lat, lng: position.lng, label: "Vị trí của bạn" } : undefined));
+                    showToast("⭐ Đã tải Lịch trình chuẩn 2N1Đ (Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo) có thuyết minh Audio!");
                   }}
                   style={{
                     background: "linear-gradient(135deg, #b8860b 0%, #d4af37 100%)",
@@ -7332,9 +7508,38 @@ export default function Home() {
                     alignItems: "center",
                     gap: "8px",
                   }}
-                  title="Tải ngay lịch trình 2N1Đ chi tiết từ file 'lịch trình du lịch.docx'"
+                  title="Tải ngay lịch trình 2N1Đ chi tiết từ file 'THUYẾT MINH LỘ TUYẾN 2 NGÀY 1 ĐÊM.docx'"
                 >
                   <span>⭐ Lịch trình chuẩn 2N1Đ</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    stopAllAudio();
+                    setTargetPlaceId("long-coc");
+                    setDays(1);
+                    setTransport("Ô tô riêng");
+                    setInterest("Thiên nhiên & Sinh thái");
+                    setGeneratedItinerary(getOfficialLongCocXuanSonItinerary(currentLang, position ? { lat: position.lat, lng: position.lng, label: "Vị trí của bạn" } : undefined));
+                    showToast("🍃 Đã tải Lịch trình chuẩn 1 Ngày (Long Cốc – VQG Xuân Sơn) có thuyết minh Audio!");
+                  }}
+                  style={{
+                    background: "linear-gradient(135deg, #166534 0%, #15803d 100%)",
+                    color: "#ffffff",
+                    fontWeight: 800,
+                    fontSize: "13.5px",
+                    padding: "10px 20px",
+                    borderRadius: "999px",
+                    border: 0,
+                    cursor: "pointer",
+                    boxShadow: "0 4px 14px rgba(22, 101, 52, 0.35)",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                  }}
+                  title="Tải ngay lịch trình 1 ngày chi tiết từ file 'THUYẾT MINH LONG CỐC - XUÂN SƠN.docx'"
+                >
+                  <span>🍃 Tour 1N Long Cốc – Xuân Sơn</span>
                 </button>
               </div>
             </div>
@@ -7664,6 +7869,24 @@ export default function Home() {
                   <option value="Gia đình có trẻ nhỏ/người cao tuổi">{t.tripStyleFamily}</option>
                   <option value="Ẩm thực bản địa">{t.tripStyleFood}</option>
                 </select>
+              </div>
+
+              {/* TÙY CHỌN: CHỈ ĐI ĐIỂM ĐÃ CHỌN (KHÔNG TỰ ĐỘNG THÊM ĐIỂM) */}
+              <div className="builder-group" style={{ background: "rgba(22, 101, 52, 0.05)", padding: "12px", borderRadius: "10px", border: "1px dashed rgba(22, 101, 52, 0.3)", marginTop: "8px" }}>
+                <label style={{ display: "flex", alignItems: "flex-start", gap: "10px", cursor: "pointer", fontSize: "13px", fontWeight: 600, color: "#166534", margin: 0 }}>
+                  <input
+                    type="checkbox"
+                    checked={strictSelectedOnly}
+                    onChange={(e) => setStrictSelectedOnly(e.target.checked)}
+                    style={{ marginTop: "2px", width: "16px", height: "16px", accentColor: "#166534" }}
+                  />
+                  <span>
+                    Chỉ đi các điểm đã chọn (không tự động thêm điểm)
+                    <small style={{ display: "block", color: "#64748b", fontWeight: 400, marginTop: "3px", lineHeight: 1.4 }}>
+                      Bật tùy chọn này nếu bạn chỉ muốn ghé đúng các điểm đã tích chọn. Nếu tắt, hệ thống sẽ gợi ý thêm điểm bổ sung và gắn kèm huy hiệu nhận biết.
+                    </small>
+                  </span>
+                </label>
               </div>
 
               <button className="button button--dark button--full" onClick={handleGenerateItinerary}>
@@ -11757,6 +11980,7 @@ function doPost(e) {
       {/* FLOATING AI CHATBOT (TRỢ LÝ AI ĐẤT TỔ - GÓC PHẢI) */}
       <AiChatbotWidget
         authUser={authUser}
+        userPosition={position ? { lat: position.lat, lng: position.lng } : null}
         onOpenAuthModal={() => {
           setAuthModalTab("login");
           setAuthModalOpen(true);

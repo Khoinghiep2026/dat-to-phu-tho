@@ -1,6 +1,12 @@
 import { places, type Place, foodRegions } from "@/data/travel";
 import { DISTRICT_DATABASE, findDistrictByQuery, type DistrictInfo } from "@/data/districtDirectory";
-import { buildItinerary, getOfficialDocxItinerary, type GeneratedItinerary } from "./guidePlanner";
+import {
+  buildItinerary,
+  getOfficialDocxItinerary,
+  getOfficialLongCocXuanSonItinerary,
+  type GeneratedItinerary,
+} from "./guidePlanner";
+import { handleSmartKnowledgeQuery } from "./aiSmartKnowledge";
 
 export const DISTRICT_TO_ANCHOR_MAP: Record<string, string> = {
   // Phú Thọ (13 huyện/thị/thành)
@@ -53,8 +59,11 @@ export type AiSurveyState = {
   travelers?: number;
   transport?: string;
   budget?: string;
+  customBudgetTotal?: number;
+  customBudgetPerPerson?: number;
   style?: string;
   origin?: string;
+  userLocation?: { lat: number; lng: number; label?: string };
 };
 
 export type AiResponseResult = {
@@ -966,9 +975,51 @@ export function extractEntitiesFromText(text: string, prevSurvey: AiSurveyState)
   } else if (lower.includes("văn hóa") || lower.includes("tâm linh") || lower.includes("cội nguồn") || lower.includes("lễ hội") || lower.includes("hát xoan")) {
     nextSurvey.style = "Văn hóa & cội nguồn";
     extractedAny = true;
-  } else if (lower.includes("ẩm thực") || lower.includes("món ngon") || lower.includes("ăn uống") || lower.includes("đặc sản")) {
-    nextSurvey.style = "Nghỉ dưỡng & ẩm thực";
-    extractedAny = true;
+  }
+
+  // 6. Budget Extraction (Matches: "tổng 600.000 đồng", "tổng 600k", "ngân sách 600k", "tổng 600.000", "300k/người", "600k 2 người")
+  const totalBudgetMatch = lower.match(
+    /(?:tổng|tong|cả nhóm|ca nhom|cho cả|tổng cộng|tong cong|ngân sách|ngan sach|chi phí|chi phi|tổng là|tổng hết)\s*(?:khoảng|tầm|tổng)?\s*([0-9.,]+)\s*(k|nghìn|nghin|ngàn|ngan|tr|triệu|trieu|đồng|dong|đ)?/i
+  );
+
+  const perPersonBudgetMatch = lower.match(
+    /([0-9.,]+)\s*(k|nghìn|nghin|ngàn|ngan|tr|triệu|trieu|đồng|dong|đ)?\s*\/(?:người|nguoi|khách|khach|ng|bạn|ban)/i
+  );
+
+  const parseMoney = (numStr: string, unitStr?: string) => {
+    const clean = numStr.replace(/\./g, "").replace(/,/g, "");
+    let val = parseFloat(clean);
+    if (isNaN(val)) return 0;
+    const u = (unitStr || "").toLowerCase();
+    if (u === "k" || u.startsWith("ngh") || u.startsWith("ngà")) {
+      val = val * 1000;
+    } else if (u === "tr" || u.startsWith("tri")) {
+      val = val * 1000000;
+    } else if (val < 10000 && !u.includes("đồng") && !u.includes("dong") && !u.includes("đ")) {
+      val = val * 1000;
+    }
+    return val;
+  };
+
+  if (totalBudgetMatch && totalBudgetMatch[1]) {
+    const totalAmount = parseMoney(totalBudgetMatch[1], totalBudgetMatch[2]);
+    if (totalAmount >= 50000) {
+      const trav = nextSurvey.travelers || 2;
+      const perPerson = Math.round(totalAmount / trav);
+      nextSurvey.customBudgetTotal = totalAmount;
+      nextSurvey.customBudgetPerPerson = perPerson;
+      nextSurvey.budget = perPerson <= 400000 ? "Tiết kiệm" : perPerson <= 1200000 ? "Tiêu chuẩn" : "Cao cấp / Nghỉ dưỡng";
+      extractedAny = true;
+    }
+  } else if (perPersonBudgetMatch && perPersonBudgetMatch[1]) {
+    const perPerson = parseMoney(perPersonBudgetMatch[1], perPersonBudgetMatch[2]);
+    if (perPerson >= 30000) {
+      const trav = nextSurvey.travelers || 2;
+      nextSurvey.customBudgetPerPerson = perPerson;
+      nextSurvey.customBudgetTotal = perPerson * trav;
+      nextSurvey.budget = perPerson <= 400000 ? "Tiết kiệm" : perPerson <= 1200000 ? "Tiêu chuẩn" : "Cao cấp / Nghỉ dưỡng";
+      extractedAny = true;
+    }
   }
 
   return { survey: nextSurvey, extractedAny, destinationMatched };
@@ -1160,6 +1211,7 @@ function handleRouteJourneyInquiry(
     budget: survey.budget || "Tiêu chuẩn",
     style: survey.style || "Văn hóa & trải nghiệm",
     travelers: finalTravelers,
+    userLocation: survey.userLocation,
   });
 
   itinerary.title = itineraryTitle;
@@ -1220,6 +1272,12 @@ export function processAiMessage(
     };
   }
 
+  // 1.5. SMART KNOWLEDGE BASE QUERY (GPT/Gemini-like deep knowledge & Q&A)
+  const smartResponse = handleSmartKnowledgeQuery(trimmed, currentSurvey, userName);
+  if (smartResponse) {
+    return smartResponse;
+  }
+
   // 2. Entity Extraction
   const { survey, destinationMatched } = extractEntitiesFromText(trimmed, currentSurvey);
 
@@ -1228,6 +1286,8 @@ export function processAiMessage(
     lower.includes("lịch trình du lịch") ||
     lower.includes("theo file") ||
     lower.includes("theo tài liệu") ||
+    lower.includes("lộ tuyến 2 ngày 1 đêm") ||
+    lower.includes("thuyết minh lộ tuyến 2 ngày") ||
     (lower.includes("đền hùng") && lower.includes("thanh thủy") && lower.includes("tam đảo")) ||
     (lower.includes("việt trì") && lower.includes("đền hùng") && lower.includes("thanh thủy"));
 
@@ -1235,12 +1295,12 @@ export function processAiMessage(
     const officialItinerary = getOfficialDocxItinerary();
     return {
       text:
-        `Dạ, em đã tải **Lịch trình chuẩn 2N1Đ (Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo)** theo đúng tài liệu hồ sơ du lịch chi tiết cho bạn rồi ạ!\n\n` +
+        `Dạ, em đã tải **Lịch trình chuẩn 2N1Đ (Việt Trì – Đền Hùng – Thanh Thủy – Tam Đảo)** kèm **giọng thuyết minh Audio HD theo từng điểm dừng** theo đúng tài liệu hồ sơ du lịch chi tiết cho bạn rồi ạ!\n\n` +
         `📋 **Tóm tắt hành trình 2 ngày 1 đêm:**\n` +
         `• **Ngày 1 (Việt Trì – Đền Hùng – Thanh Thủy):**\n` +
-        `   - 07:30: Xuất phát từ trung tâm Việt Trì\n` +
-        `   - 07:30 – 08:00: Ăn sáng tại Nhà hàng Mai Anh (Hy Cương)\n` +
-        `   - 08:00 – 10:30: Chiêm bái Đền Hùng (Đền Hạ → Đền Trung → Đền Thượng → Đền Giếng → Bảo tàng Hùng Vương)\n` +
+        `   - 07:00 – 07:25: Xuất phát từ trung tâm Việt Trì (12 km, 25 phút di chuyển)\n` +
+        `   - 07:30 – 08:15: Ăn sáng tại Nhà hàng Mai Anh (Hy Cương)\n` +
+        `   - 08:15 – 10:45: Chiêm bái Đền Hùng (Đền Hạ → Đền Trung → Đền Thượng → Đền Giếng → Bảo tàng Hùng Vương)\n` +
         `   - 11:00 – 12:15: Ăn trưa tại Nhà Hàng Giang Lan Đền Hùng\n` +
         `   - 12:15 – 13:30: Di chuyển Đền Hùng → Thanh Thủy\n` +
         `   - 13:30 – 14:30: Nhận phòng Shoptel nghỉ dưỡng tại Lynn Times Thanh Thủy\n` +
@@ -1256,7 +1316,7 @@ export function processAiMessage(
         `   - 12:45 – 14:00: Thưởng thức café ngắm biển mây tại Cổng Trời\n` +
         `   - 14:00 – 15:45: Dạo chợ mua quà đặc sản & check-in phố núi\n` +
         `   - 16:00 – 17:30: Di chuyển về TP. Việt Trì, kết thúc chuyến đi an toàn!\n\n` +
-        `Thẻ lịch trình chi tiết và bảng chi phí từng chặng đã được cập nhật ngay trên màn hình để bạn dễ dàng theo dõi:`,
+        `🎧 Bạn có thể **bấm nghe thuyết minh riêng cho từng điểm đến** (như Đền Hùng, Thanh Thủy, Lynn Times, Tam Đảo...) ngay trên từng thẻ lịch trình hoặc dùng bộ chọn điểm bên dưới!`,
       itinerary: officialItinerary,
       options: [
         { label: "⭐ Xem chi tiết ngày 1", value: "xem_ngay_1", icon: "🏛️" },
@@ -1268,6 +1328,48 @@ export function processAiMessage(
         durationDays: 2,
         transport: "Ô tô riêng",
         anchorPlaceId: "den-hung",
+      },
+    };
+  }
+
+  // 2.2. Check if user is asking for the Long Coc - Xuan Son tour
+  const isAskingLongCocTour =
+    (lower.includes("long cốc") && (lower.includes("xuân sơn") || lower.includes("thanh sơn") || lower.includes("tân sơn"))) ||
+    lower.includes("thuyết minh long cốc") ||
+    lower.includes("long cốc - xuân sơn") ||
+    lower.includes("long coc - xuan son");
+
+  if (isAskingLongCocTour) {
+    const longCocItinerary = getOfficialLongCocXuanSonItinerary();
+    return {
+      text:
+        `Dạ, em đã nạp **Lịch trình Tour sinh thái Đồi chè Long Cốc – Vườn Quốc Gia Xuân Sơn (2N1Đ)** kèm **hệ thống thuyết minh Audio HD theo từng điểm dừng** theo đúng hồ sơ thuyết minh cho bạn rồi ạ!\n\n` +
+        `📋 **Tóm tắt hành trình khám phá Kỳ quan Đất Tổ:**\n` +
+        `• **Ngày 1 (Việt Trì – Đồi chè Long Cốc – VQG Xuân Sơn):**\n` +
+        `   - 06:30 – 08:30: Khởi hành từ TP. Việt Trì đi Tân Sơn qua QL32 & cung đường chè\n` +
+        `   - 08:30 – 11:00: Check-in & ngắm ốc đảo chè bạt ngàn tại Đồi chè Long Cốc\n` +
+        `   - 11:30 – 13:00: Ăn trưa đặc sản vùng cao (gà nhiều cựa, xôi ngũ sắc) tại Bản Dù\n` +
+        `   - 13:30 – 16:30: Trekking rừng nguyên sinh & thám hiểm Hang Sơn Dương / Hang Na\n` +
+        `   - 17:00 – 18:30: Check-in Homestay bản Dù / bản Cỏi, trải nghiệm đời sống người Dao, Mường\n` +
+        `   - 19:00 – 21:00: Thưởng thức bữa tối ẩm thực Mường, giao lưu lửa trại & múa sạp\n\n` +
+        `• **Ngày 2 (Xuân Sơn – Thác Tiên – Về TP. Việt Trì):**\n` +
+        `   - 07:00 – 08:00: Ăn sáng nông sản bản địa & ngắm sương mù thung lũng\n` +
+        `   - 08:30 – 11:00: Check-in Thác Ngọc, Thác Tiên, tắm suối mát & chụp ảnh lưu niệm\n` +
+        `   - 11:30 – 12:45: Ăn trưa tại Homestay Xuân Sơn (lợn cắp nách, rau dớn rừng)\n` +
+        `   - 13:30 – 16:00: Mua sắm đặc sản (chè Shan Tuyết, mật ong rừng, măng khô) & khởi hành về lại TP. Việt Trì\n\n` +
+        `🎧 Bạn có thể **bấm nghe thuyết minh riêng cho từng điểm** (Đồi chè Long Cốc, Rừng nguyên sinh Xuân Sơn, Hang động, Thác Tiên...) trực tiếp trên các thẻ lịch trình bên dưới:`,
+      itinerary: longCocItinerary,
+      options: [
+        { label: "🍵 Thuyết minh Đồi chè Long Cốc", value: "audio_long_coc", icon: "🎧" },
+        { label: "🌲 Thuyết minh VQG Xuân Sơn", value: "audio_xuan_son", icon: "🎧" },
+        { label: "🚗 Xem lộ trình Google Maps", value: "xem_ban_do_long_coc", icon: "🗺️" },
+      ],
+      updatedSurvey: {
+        ...currentSurvey,
+        durationDays: 2,
+        transport: "Xe ô tô",
+        anchorPlaceId: "doi-che-long-coc",
+        district: "Tân Sơn",
       },
     };
   }
@@ -1398,7 +1500,7 @@ export function processAiMessage(
     const finalTransport = survey.transport || "Ô tô riêng";
     const finalStyle = survey.style || "Văn hóa & cội nguồn";
 
-    // Generate accurate itinerary
+    // Generate accurate itinerary with custom budget options
     const itinerary = buildItinerary({
       anchorPlaceId: survey.anchorPlaceId,
       selectedPlaceIds: survey.selectedPlaceIds.length > 0 ? survey.selectedPlaceIds : [survey.anchorPlaceId],
@@ -1407,18 +1509,73 @@ export function processAiMessage(
       durationDays: finalDays,
       durationNights: finalNights,
       transport: finalTransport,
-      budget: survey.budget || "Tiêu chuẩn",
+      budget: survey.budget || "Tiết kiệm",
       style: finalStyle,
       travelers: finalTravelers,
+      userLocation: survey.userLocation,
+      customBudgetTotal: survey.customBudgetTotal,
+      customBudgetPerPerson: survey.customBudgetPerPerson,
     });
 
     const userGreeting = userName ? `Chào **${userName}**! ` : "";
     const nightText = finalNights > 0 ? ` ${finalNights} đêm` : " trong ngày";
 
+    // Transparent budget explanation
+    let budgetExplanation = "";
+    if (survey.customBudgetTotal || survey.customBudgetPerPerson) {
+      const totalBudget = survey.customBudgetTotal || ((survey.customBudgetPerPerson || 0) * finalTravelers);
+      const perPersonBudget = Math.round(totalBudget / finalTravelers);
+      const estGas = finalTransport.toLowerCase().includes("xe máy") ? (finalDays === 1 ? 50000 : 90000) : 150000;
+      const estFood = Math.max(80000, Math.round(perPersonBudget * 0.55));
+      const estTicket = Math.round(perPersonBudget * 0.15);
+      const estOther = perPersonBudget - estGas - estFood - estTicket;
+
+      budgetExplanation =
+        `\n\n💰 **Phân bổ ngân sách minh bạch (Khớp đúng mức ${totalBudget.toLocaleString("vi-VN")} đ cho cả đoàn ${finalTravelers} người - tức ~${perPersonBudget.toLocaleString("vi-VN")} đ/người):**\n` +
+        `• 🛵 **Xăng xe / Di chuyển:** ~${estGas.toLocaleString("vi-VN")} đ/người (tiết kiệm khi đi xe máy)\n` +
+        `• 🍜 **Ăn uống trải nghiệm:** ~${estFood.toLocaleString("vi-VN")} đ/người (bữa trưa & ẩm thực địa phương vừa đủ no ngon)\n` +
+        `• 🎫 **Vé tham quan & dâng hương:** ~${estTicket.toLocaleString("vi-VN")} đ/người\n` +
+        `• 🥤 **Nước uống & dự phòng:** ~${Math.max(20000, estOther).toLocaleString("vi-VN")} đ/người\n` +
+        `👉 Toàn bộ hành trình hoàn toàn nằm gọn trong ngân sách **${totalBudget.toLocaleString("vi-VN")} đ** đã định, không lo vượt chi phí!`;
+    }
+
+    let itineraryText = `🎉 ${userGreeting}Em đã thiết kế **Phương án Lịch trình ${finalDays} ngày${nightText}** khám phá **${survey.destinationText}** cho đoàn **${finalTravelers} người** (${finalTransport}) tối ưu nhất:\n\n`;
+    itineraryText += `📌 **Thông số chuyến đi:**\n`;
+    itineraryText += `• ⏱️ **Thời lượng:** ${itinerary.durationLabel} | 🚗 **Cự ly di chuyển:** ~${itinerary.totalDistanceKm} km (${itinerary.totalDriveTime})\n`;
+    itineraryText += `• 💰 **Dự toán chi phí:** ~${itinerary.estimatedCostPerPerson.toLocaleString("vi-VN")} đ/người (Tổng đoàn: ~${itinerary.totalCost.toLocaleString("vi-VN")} đ)\n`;
+    if (itinerary.overviewNarrative) {
+      itineraryText += `• 🌟 **Trải nghiệm nổi bật:** ${itinerary.overviewNarrative}\n`;
+    }
+    itineraryText += budgetExplanation;
+    itineraryText += `\n\n📋 **Kế hoạch chi tiết từng buổi:**\n\n`;
+
+    itinerary.days.forEach((d) => {
+      itineraryText += `🗓️ **${d.dateLabel || `Ngày ${d.dayNumber}`}: ${d.dayTitle}**\n`;
+      if (d.daySummary) {
+        itineraryText += `*${d.daySummary}*\n`;
+      }
+      d.slots.forEach((s) => {
+        const icon = s.type === "visit" ? "📍" : s.type === "meal" ? "🥢" : s.type === "stay" ? "🏨" : "🚗";
+        itineraryText += `• **${s.timeSlot}** (${s.period}) ${icon} **${s.title}**\n`;
+        itineraryText += `   - ${s.activity}\n`;
+        if (s.highlightNote) {
+          itineraryText += `   - 💡 *${s.highlightNote}*\n`;
+        }
+      });
+      itineraryText += `\n`;
+    });
+
+    if (itinerary.routeAdvice) {
+      itineraryText += `🛣️ **Chỉ dẫn lộ trình:** ${itinerary.routeAdvice}\n`;
+    }
+    if (itinerary.cautionAdvice) {
+      itineraryText += `⚠️ **Lưu ý:** ${itinerary.cautionAdvice}\n`;
+    }
+
+    itineraryText += `\n👉 *Bạn có thể bấm **"Xem trên Trang Lịch Trình trực quan"** bên dưới để mở toàn bộ bản đồ GPS và nghe thuyết minh Audio từng điểm nhé!*`;
+
     return {
-      text:
-        `🎉 ${userGreeting}Em đã thiết kế xong **Lịch trình ${finalDays} ngày${nightText}** khám phá **${survey.destinationText}** cho **${finalTravelers} người** đi bằng **${finalTransport}** đúng theo yêu cầu của bạn!\n\n` +
-        `Lịch trình được tính toán cung đường tối ưu, các điểm tham quan nổi tiếng, điểm nghỉ chân và gợi ý các món đặc sản địa phương ngon nhất. Bạn có thể xem ngay chi tiết bên dưới:`,
+      text: itineraryText,
       itinerary,
       options: [
         { label: "👉 Xem trên Trang Lịch Trình trực quan ➔", value: "view_trip_now", icon: "🗺️" },

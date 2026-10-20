@@ -1,0 +1,168 @@
+{
+  "tour2n1d": {
+    "01_khoi_hanh_viet_tri": {
+      "title": "Khởi hành từ TP. Việt Trì",
+      "stopName": "TP. Việt Trì",
+      "audioFile": "/audio/tours/tour-2n1d/01_khoi_hanh_viet_tri.mp3",
+      "text": "Xin chào quý khách! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi rất vinh hạnh được đồng hành cùng quý khách trong hành trình 2 ngày 1 đêm khám phá vùng Đất Tổ thiêng liêng: từ cội nguồn dân tộc tại Quần thể di tích Đền Hùng, đến không gian khoáng nóng thư giãn tại Lynn Times Thanh Thủy và săn mây tại đỉnh núi mờ sương Tam Đảo. Chuyến đi khởi hành từ trung tâm thành phố Việt Trì theo tuyến đường Hùng Vương. Chúc quý khách một hành trình an toàn, tràn đầy niềm vui và những trải nghiệm văn hóa sâu sắc!"
+    },
+    "02_an_sang_mai_anh": {
+      "title": "Ăn sáng tại Nhà hàng Mai Anh",
+      "stopName": "Nhà hàng Mai Anh – Hy Cương",
+      "audioFile": "/audio/tours/tour-2n1d/02_an_sang_mai_anh.mp3",
+      "text": "Kính thưa quý khách! Trước khi bước vào hành trình leo núi chiêm bái Đền Hùng, đoàn chúng ta dừng chân ăn sáng tại Nhà hàng Mai Anh, tọa lạc ngay trên trục đường vào khu di tích xã Hy Cương. Tại đây, quý khách có thể thưởng thức bữa sáng nóng sốt với các món phở bò, bún bò Huế đậm đà hoặc bánh cuốn nóng, nhâm nhi tách cà phê sáng để nạp đầy năng lượng cho hành trình dâng hương đầy ý nghĩa phía trước."
+    },
+    "03_den_hung_cong_chinh": {
+      "title": "Cổng chính Khu di tích lịch sử Đền Hùng",
+      "stopName": "Cổng chính Đền Hùng",
+      "audioFile": "/audio/tours/tour-2n1d/03_den_hung_cong_chinh.mp3",
+      "text": "Kính thưa quý khách! Chúng ta đang có mặt tại Cổng chính Khu di tích lịch sử Đền Hùng, nằm dưới chân núi Nghĩa Lĩnh linh thiêng. Cổng chính được xây dựng vào năm 1917 thời vua Khải Định. Trên đỉnh cổng nổi bật bức đại tự bốn chữ Hán 'Cao sơn cảnh hành', nghĩa là lên núi cao ngắm cảnh đẹp và noi theo đức hạnh cao vời vợi của các bậc tiền nhân dựng nước. Từ đây, tuyến hành hương linh thiêng sẽ lần lượt đưa quý khách lên Đền Hạ, Chùa Thiên Quang, Đền Trung, Đền Thượng, Lăng Hùng Vương, Đền Giếng và Bảo tàng Hùng Vương."
+    },
+    "04_den_ha": {
+      "title": "Đền Hạ – Cội nguồn trăm trứng",
+      "stopName": "Đền Hạ",
+      "audioFile": "/audio/tours/tour-2n1d/04_den_ha.mp3",
+      "text": "Kính thưa quý khách! Trước mắt chúng ta là Đền Hạ, công trình nằm ở tầng thứ nhất trên sườn núi Nghĩa Lĩnh. Nơi đây gắn liền với truyền thuyết huyền thoại Mẹ Âu Cơ sinh bọc trăm trứng, nở ra một trăm người con trai – cội nguồn thiêng liêng của hai tiếng 'đồng bào' và dòng dõi 'Con Rồng cháu Tiên' của dân tộc Việt Nam. Đền được xây dựng vào thời Hậu Lê, mang phong cách kiến trúc chữ Nhị cổ kính nép mình dưới bóng rừng cây đại thụ rợp mát."
+    },
+    "05_chua_thien_quang": {
+      "title": "Chùa Thiên Quang – Dấu ấn Phật giáo",
+      "stopName": "Chùa Thiên Quang",
+      "audioFile": "/audio/tours/tour-2n1d/05_chua_thien_quang.mp3",
+      "text": "Kính thưa quý khách! Nằm liền kề Đền Hạ là Chùa Thiên Quang, tên chữ là 'Thiên Quang Thiền Tự', nghĩa là ánh sáng từ trời chiếu rọi. Ngôi chùa cổ kính được xây dựng từ thời nhà Trần. Trước cửa chùa có cây vạn tuế cổ thụ ba nhánh hơn 800 năm tuổi, chính là nơi vào ngày 19 tháng 9 năm 1954, Chủ tịch Hồ Chí Minh đã căn dặn cán bộ, chiến sĩ Đại đoàn Quân Tiên Phong câu nói bất hủ: 'Các Vua Hùng đã có công dựng nước, Bác cháu ta phải cùng nhau giữ lấy nước'."
+    },
+    "06_den_trung": {
+      "title": "Đền Trung – Bánh chưng bánh giầy",
+      "stopName": "Đền Trung",
+      "audioFile": "/audio/tours/tour-2n1d/06_den_trung.mp3",
+      "text": "Kính thưa quý khách! Vượt qua 159 bậc đá quanh co, chúng ta đã đến Đền Trung, có tên chữ là 'Hùng Vương Tổ Miếu'. Tương truyền, đây là nơi các Vua Hùng cùng các Lạc hầu, Lạc tướng họp bàn việc nước và ngắm nhìn cảnh sắc non sông gấm vóc. Đây cũng chính là nơi Vua Hùng thứ sáu truyền ngôi cho hoàng tử Lang Liêu nhờ sự tích làm ra hai thứ bánh trời đất vuông tròn: Bánh chưng và bánh giầy đậm đà bản sắc nông nghiệp lúa nước ngàn đời."
+    },
+    "07_den_thuong": {
+      "title": "Đền Thượng – Kính Thiên Lĩnh Điện",
+      "stopName": "Đền Thượng & Cột đá thề",
+      "audioFile": "/audio/tours/tour-2n1d/07_den_thuong.mp3",
+      "text": "Kính thưa quý khách! Vượt tiếp hơn 100 bậc đá lên tới đỉnh cao nhất của núi Nghĩa Lĩnh ở độ cao 175 mét, chúng ta đang đứng trước Đền Thượng, tên chữ là 'Kính Thiên Lĩnh Điện' – nghĩa là điện thờ kính trời trên đỉnh núi cao. Đây là trung tâm linh thiêng bậc nhất của Tín ngưỡng thờ cúng Hùng Vương – Di sản văn hóa phi vật thể đại diện của nhân loại. Bên cạnh đền là Cột đá thề lịch sử do Thục Phán An Dương Vương dựng lên nguyện đời đời trông nom miếu vũ và giữ gìn bờ cõi non sông Vua Hùng trao lại."
+    },
+    "08_lang_hung_vuong": {
+      "title": "Lăng Hùng Vương – Tưởng niệm tiền nhân",
+      "stopName": "Lăng Hùng Vương",
+      "audioFile": "/audio/tours/tour-2n1d/08_lang_hung_vuong.mp3",
+      "text": "Kính thưa quý khách! Nằm ngay phía đông Đền Thượng là Lăng Hùng Vương, tương truyền là lăng mộ của Vua Hùng thứ sáu. Lăng có hình vuông, bốn mái cong cổ kính, bên trong có mộ đá linh thiêng. Đứng tại lăng mộ giữa ngút ngàn rừng cây cổ thụ, hướng tầm mắt nhìn ra ngã ba sông Bạch Hạc, chúng ta càng thấm thía sâu sắc đạo lý 'Uống nước nhớ nguồn' của dân tộc Việt Nam qua hàng nghìn năm lịch sử."
+    },
+    "09_den_gieng": {
+      "title": "Đền Giếng – Giếng Ngọc & Hai công chúa",
+      "stopName": "Đền Giếng",
+      "audioFile": "/audio/tours/tour-2n1d/09_den_gieng.mp3",
+      "text": "Kính thưa quý khách! Xuôi theo triền núi về hướng đông nam, chúng ta đến với Đền Giếng, tên chữ là 'Chính Môn Khang Dân Miếu'. Ngôi đền thờ hai vị công chúa con gái Vua Hùng thứ 18 là Tiên Dung và Ngọc Hoa. Bên trong đền có giếng cổ Ngọc Tỉnh quanh năm nước trong vắt mát lành, tương truyền là nơi hai công chúa thường soi gương, vấn tóc, dạy nhân dân cấy lúa dệt vải ấm no."
+    },
+    "10_bao_tang_hung_vuong": {
+      "title": "Bảo tàng Hùng Vương – Đồi Công Quán",
+      "stopName": "Bảo tàng Hùng Vương",
+      "audioFile": "/audio/tours/tour-2n1d/10_bao_tang_hung_vuong.mp3",
+      "text": "Kính thưa quý khách! Tọa lạc trên Đồi Công Quán, Bảo tàng Hùng Vương được thiết kế độc đáo mô phỏng trời tròn đất vuông với mái vòm đồng tâm uy nghiêm. Bảo tàng lưu giữ và trưng bày hơn 4.000 hiện vật quý giá thuộc các nền văn hóa khảo cổ Sơn Vi, Phùng Nguyên, Đồng Đậu, Gò Mun và đỉnh cao là văn hóa Đông Sơn thời đại Hùng Vương dựng nước."
+    },
+    "11_nha_hang_giang_lan": {
+      "title": "Nhà hàng Giang Lan – Ẩm thực Đền Hùng",
+      "stopName": "Nhà hàng Giang Lan Đền Hùng",
+      "audioFile": "/audio/tours/tour-2n1d/11_nha_hang_giang_lan.mp3",
+      "text": "Kính thưa quý khách! Sau hành trình dâng hương Đền Hùng, đoàn chúng ta dừng chân nghỉ trưa và thưởng thức bữa tiệc ẩm thực tại Nhà hàng Giang Lan, nằm ngay chân núi khu di tích. Nhà hàng nổi tiếng với các món cá sông Lô tự nhiên như cá lăng nướng than hoa, cá chiên om chuối đậu, gà đồi hấp lá chanh và thịt chua Thanh Sơn cuốn lá sung đặc sản trứ danh đất Tổ."
+    },
+    "12_lynn_times_thanh_thuy": {
+      "title": "Lynn Times Thanh Thủy – Nghỉ dưỡng khoáng nóng",
+      "stopName": "Lynn Times Thanh Thủy Resort",
+      "audioFile": "/audio/tours/tour-2n1d/12_lynn_times_thanh_thuy.mp3",
+      "text": "Kính thưa quý khách! Chào mừng quý khách đến với Lynn Times Thanh Thủy Resort & Khoáng Nóng! Đây là tổ hợp nghỉ dưỡng 5 sao mang đậm phong cách Nhật Bản bên dòng sông Đà thơ mộng. Đặc ân lớn nhất tại đây là nguồn khoáng nóng Radon tự nhiên quý hiếm bậc nhất Việt Nam, được duy trì ở nhiệt độ lý tưởng từ 37 đến 53 độ C. Quý khách sẽ được tận hưởng dịch vụ tắm Onsen Nhật Bản, bồn ngâm thảo dược, xông hơi đá muối Himalaya, dạo bước trên phố đi bộ Hokkaido và ngắm đàn cá Koi bơi lội thanh bình."
+    },
+    "13_tinh_hoa_bac_bo": {
+      "title": "Nhà hàng Tinh Hoa Bắc Bộ & Chả Cá Sông Đà",
+      "stopName": "Nhà hàng Tinh Hoa Bắc Bộ",
+      "audioFile": "/audio/tours/tour-2n1d/13_tinh_hoa_bac_bo.mp3",
+      "text": "Kính thưa quý khách! Bữa tối ngày thứ nhất, đoàn chúng ta dùng bữa tại Nhà hàng Tinh Hoa Bắc Bộ & Chả Cá Sông Đà ngay trong khuôn viên phố đi bộ Lynn Times Thanh Thủy. Món chả cá sông Đà trứ danh được chế biến từ cá tươi thịt chắc nịch xào thơm lừng cùng thì là, hành hoa trên chảo mỡ sôi xèo xèo, chấm mắm tôm bọt trắng thơm cay ăn kèm bún rối tươi mát, đem lại trải nghiệm ẩm thực thăng hoa khó quên."
+    },
+    "14_quang_truong_tam_dao": {
+      "title": "Quảng trường Tam Đảo – Trái tim phố núi",
+      "stopName": "Quảng trường Tam Đảo",
+      "audioFile": "/audio/tours/tour-2n1d/14_quang_truong_tam_dao.mp3",
+      "text": "Kính thưa quý khách! Sáng ngày thứ hai, sau cung đường vượt đèo mây uốn lượn, chúng ta đã đặt chân đến Quảng trường trung tâm Tam Đảo ở độ cao hơn 900 mét so với mực nước biển. Quảng trường là không gian sinh hoạt cộng đồng rực rỡ sắc màu với đài phun nước, các bậc thang đá rộng thênh thang và dòng chữ Tam Đảo nổi bật trên nền núi rừng xanh ngát bồng bềnh mây bay."
+    },
+    "15_nha_tho_da_tam_dao": {
+      "title": "Nhà thờ đá Tam Đảo – Dấu ấn kiến trúc Gothic",
+      "stopName": "Nhà thờ đá Tam Đảo",
+      "audioFile": "/audio/tours/tour-2n1d/15_nha_tho_da_tam_dao.mp3",
+      "text": "Kính thưa quý khách! Ngay bên cạnh quảng trường là Nhà thờ đá cổ Tam Đảo – kiệt tác kiến trúc Gothic được người Pháp khởi công xây dựng từ đầu thế kỷ XX. Toàn bộ công trình được ghép từ những phiến đá xanh kiên cố, với những vòm cửa nhọn và tháp chuông rêu phong cổ kính. Từ các vòm cuốn bằng đá của nhà thờ nhìn xuống, toàn cảnh thị trấn Tam Đảo hiện ra huyền ảo như một bức tranh châu Âu giữa mây ngàn."
+    },
+    "16_nha_hang_tam_dao_nui": {
+      "title": "Nhà hàng Tam Đảo Núi – Ẩm thực vùng cao",
+      "stopName": "Nhà hàng Tam Đảo Núi",
+      "audioFile": "/audio/tours/tour-2n1d/16_nha_hang_tam_dao_nui.mp3",
+      "text": "Kính thưa quý khách! Bữa trưa tại Tam Đảo, chúng ta dừng chân tại Nhà hàng Tam Đảo Núi. Khí hậu mát lành quanh năm của vùng núi cao đã làm nên những sản vật nức tiếng: đĩa ngọn su su xào tỏi xanh mướt giòn ngọt sần sật, thịt gà đồi nướng than hoa vàng rộm chấm muối ớt tiêu chanh và lợn mán nướng xiên thơm lừng khó cưỡng."
+    },
+    "17_cong_troi_tam_dao": {
+      "title": "Cổng Trời Tam Đảo – Săn mây từ trên cao",
+      "stopName": "Cổng Trời Tam Đảo",
+      "audioFile": "/audio/tours/tour-2n1d/17_cong_troi_tam_dao.mp3",
+      "text": "Kính thưa quý khách! Điểm dừng chân thơ mộng nhất buổi chiều chính là khu vực Cổng Trời Tam Đảo. Từ đây phóng tầm mắt ra xa, quý khách sẽ thấy mây trắng cuồn cuộn tràn qua sườn núi tựa chốn bồng lai. Thưởng thức một tách cà phê ấm nóng trong tiết trời se lạnh, lắng nghe tiếng gió đại ngàn và ngắm nhìn thung lũng bảng lảng mây sương là khoảnh khắc thư thái tuyệt vời khép lại chặng tham quan Tam Đảo."
+    },
+    "18_tam_dao_ket_thuc": {
+      "title": "Chợ Tam Đảo & Lời kết chia tay hành trình",
+      "stopName": "Trung tâm Tam Đảo – Về Việt Trì",
+      "audioFile": "/audio/tours/tour-2n1d/18_tam_dao_ket_thuc.mp3",
+      "text": "Kính thưa quý khách! Quý khách có thời gian tự do dạo chợ Tam Đảo để chọn mua những bó ngọn su su tươi non mơn mởn vừa hái, bánh hạt dẻ và mật ong rừng nguyên chất về làm quà. Hành trình 2 ngày 1 đêm kết nối Đền Hùng linh thiêng, khoáng nóng Thanh Thủy và mây ngàn Tam Đảo của chúng ta đã khép lại trọn vẹn và an toàn. Trợ lý Du lịch Đất Tổ xin chân thành cảm ơn quý khách, kính chúc quý khách sức khỏe, hạnh phúc và hẹn gặp lại trên những hành trình tiếp theo!"
+    }
+  },
+  "tourLongCocXuanSon": {
+    "01_khoi_hanh_long_coc": {
+      "title": "Khởi hành từ Việt Trì đi Long Cốc – Xuân Sơn",
+      "stopName": "TP. Việt Trì",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/01_khoi_hanh_long_coc.mp3",
+      "text": "Xin chào quý khách! Tôi là Trợ lý Du lịch Đất Tổ. Hôm nay, tôi rất hân hạnh đồng hành cùng quý khách trong hành trình khám phá vẻ đẹp kỳ vĩ của thiên nhiên Phú Thọ: Đồi chè bát úp Long Cốc và Vườn quốc gia Xuân Sơn. Chuyến đi khởi hành sớm từ trung tâm Việt Trì theo quốc lộ 32 để kịp đón bình minh tuyệt đẹp trên ốc đảo chè xanh. Chúc quý khách một ngày tràn ngập năng lượng và những bức ảnh kỷ niệm đáng nhớ!"
+    },
+    "02_doi_che_long_coc": {
+      "title": "Đồi chè Long Cốc – Đón bình minh & săn mây",
+      "stopName": "Đồi chè Long Cốc",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/02_doi_che_long_coc.mp3",
+      "text": "Kính thưa quý khách! Chào mừng quý khách đến với Đồi chè Long Cốc, thuộc xã Long Cốc, tỉnh Phú Thọ. Được mệnh danh là 'Vịnh Hạ Long trên cạn' của vùng trung du, nơi đây có hàng trăm quả đồi chè tròn xoe nhấp nhô nối tiếp nhau như những chiếc bát úp khổng lồ. Vào buổi sớm mai, những tia nắng ban mai xuyên qua màn sương bồng bềnh dệt nên khung cảnh kỳ ảo say đắm lòng người. Đồi chè cũng chính là biểu tượng cho bàn tay lao động cần mẫn của đồng bào người Mường nơi đây."
+    },
+    "03_an_sang_tony_luan": {
+      "title": "Ăn sáng tại Homestay Tony Luận",
+      "stopName": "Homestay Tony Luận Long Cốc",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/03_an_sang_tony_luan.mp3",
+      "text": "Kính thưa quý khách! Sau khi chiêm ngưỡng trọn vẹn khoảnh khắc bình minh trên đồi chè, đoàn chúng ta di chuyển đến Homestay Tony Luận. Trong không gian nhà sàn gỗ mộc mạc và ấm cúng của bản Mường, kính mời quý khách thưởng thức bữa sáng giản dị, đậm vị quê và nhâm nhi tách trà Shan tuyết Long Cốc thơm ngát để nạp năng lượng tiếp tục hành trình."
+    },
+    "04_kham_pha_doi_che": {
+      "title": "Khám phá & Check-in ốc đảo chè Long Cốc",
+      "stopName": "Khu chụp ảnh đồi chè Long Cốc",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/04_kham_pha_doi_che.mp3",
+      "text": "Kính thưa quý khách! Khi mặt trời lên cao hơn, những luống chè xanh mướt hiện lên sắc nét rạng ngời. Quý khách có thể tự do dạo bước men theo các lối mòn giữa nương chè, thuê trang phục dân tộc Mường, Dao rực rỡ để lưu lại những khuôn hình kỷ niệm độc đáo giữa không gian bao la của đất trời."
+    },
+    "05_duong_sang_xuan_son": {
+      "title": "Cung đường di chuyển sang Vườn quốc gia Xuân Sơn",
+      "stopName": "Tuyến đường Long Cốc – Xuân Sơn",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/05_duong_sang_xuan_son.mp3",
+      "text": "Kính thưa quý khách! Tạm biệt đồi chè Long Cốc, xe chúng ta tiếp tục lăn bánh sang Vườn quốc gia Xuân Sơn. Nếu Long Cốc mang vẻ đẹp mềm mại của những triền chè xanh uốn lượn, thì Xuân Sơn mở ra một thế giới hoàn toàn khác với núi non hùng vĩ, những cánh rừng nguyên sinh ngút ngàn và các hang động đá vôi kỳ bí. Dọc hai bên đường, quý khách sẽ được ngắm nhìn cảnh sắc thanh bình của núi rừng Tây Bắc."
+    },
+    "06_tham_quan_vqg_xuan_son": {
+      "title": "Tham quan Vườn quốc gia Xuân Sơn",
+      "stopName": "Vườn quốc gia Xuân Sơn",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/06_tham_quan_vqg_xuan_son.mp3",
+      "text": "Kính thưa quý khách! Chúng ta đã có mặt tại Vườn quốc gia Xuân Sơn – lá phổi xanh quý giá của tỉnh Phú Thọ. Xuân Sơn đặc trưng bởi hệ sinh thái rừng nhiệt đới trên núi đá vôi với hàng trăm loài động thực vật quý hiếm. Tại đây có hệ thống hang động thạch nhũ tự nhiên kỳ vĩ như Hang Na, Hang Lạng, Thác Chín Tầng mát lạnh và những con suối trong vắt chảy len lỏi qua từng tán cây cổ thụ đại ngàn."
+    },
+    "07_an_trua_the_nhe": {
+      "title": "Ăn trưa đặc sản tại Nhà hàng Thế Nhé 1",
+      "stopName": "Nhà hàng Thế Nhé 1 Xuân Sơn",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/07_an_trua_the_nhe.mp3",
+      "text": "Kính thưa quý khách! Sau chặng đường khám phá rừng già, đoàn dừng chân dùng bữa trưa tại Nhà hàng Thế Nhé 1. Bữa trưa hôm nay mang đậm phong vị đại ngàn Xuân Sơn: món Gà nhiều cựa nướng than hoa giòn ngọt tiến Vua, đĩa rau dớn rừng xào tỏi xanh non giòn ngọt, cá suối chiên giòn rụm và canh măng đắng thơm nồng khó quên."
+    },
+    "08_ban_du_van_hoa": {
+      "title": "Khám phá Bản Dù & Văn hóa bản địa Dao – Mường",
+      "stopName": "Bản Dù – VQG Xuân Sơn",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/08_ban_du_van_hoa.mp3",
+      "text": "Kính thưa quý khách! Buổi chiều, chúng ta dành thời gian dạo bước khám phá Bản Dù – một bản làng thanh bình của đồng bào Dao Tiền và Mường. Những nếp nhà sàn xinh xắn bên bờ suối, tiếng khung cửi dệt thổ cẩm lách cách và nụ cười hiền hậu của người dân địa phương sẽ giúp quý khách cảm nhận sâu sắc nhịp sống mộc mạc, gần gũi và hài hòa với thiên nhiên đất trời."
+    },
+    "09_tro_ve_viet_tri": {
+      "title": "Khởi hành trở về Việt Trì – Khép lại hành trình",
+      "stopName": "Bản Dù – Về lại Việt Trì",
+      "audioFile": "/audio/tours/tour-longcoc-xuanson/09_tro_ve_viet_tri.mp3",
+      "text": "Kính thưa quý khách! Chiều tà buông xuống, xe đón đoàn khởi hành trở về thành phố Việt Trì. Hành trình khám phá đồi chè Long Cốc và rừng già Xuân Sơn đã mang lại cho chúng ta không chỉ những bức hình tuyệt đẹp mà còn là sự thư thái trọn vẹn trong tâm hồn. Trợ lý Du lịch Đất Tổ xin gửi lời cảm ơn và hẹn gặp lại quý khách trên những hành trình khám phá tiếp theo!"
+    }
+  }
+}
