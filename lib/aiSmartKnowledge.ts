@@ -1,6 +1,7 @@
 import { type AiSurveyState, type AiResponseResult } from "./aiChatEngine";
-import { getOfficialDocxItinerary, getOfficialLongCocXuanSonItinerary } from "./guidePlanner";
+import { buildItinerary, type GeneratedItinerary, getOfficialDocxItinerary, getOfficialLongCocXuanSonItinerary } from "./guidePlanner";
 import { places, type Place } from "@/data/travel";
+import { getAllDistrictPlaces } from "./districtPlaceGenerator";
 import { findDistrictByQuery, DISTRICT_DATABASE, type DistrictInfo, type DistrictAttraction } from "@/data/districtDirectory";
 
 // Match specific place from query text
@@ -221,6 +222,440 @@ function formatDistrictInfo(d: DistrictInfo, greeting: string, survey: AiSurveyS
   };
 }
 
+// =========================================================================
+// DYNAMIC ROUTE COMBINER & RANDOM ITINERARY GENERATOR
+// =========================================================================
+
+/**
+ * Quét và trích xuất tất cả các địa danh được người dùng nhắc tới trong câu hỏi
+ */
+export function extractAllMentionedPlaces(text: string): Place[] {
+  const norm = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đ]/g, "d");
+
+  const allPlacesPool: Place[] = [...places, ...getAllDistrictPlaces()];
+  const matchedMap = new Map<string, Place>();
+
+  // 1. Quét 18 địa danh cốt lõi
+  const PLACE_KEYWORD_MAP: Array<{ keywords: string[]; placeId: string }> = [
+    { keywords: ["den hung", "nghia linh", "hung vuong", "lang vua hung", "den cac vua hung"], placeId: "den-hung" },
+    { keywords: ["long coc", "doi che long coc", "che bat up", "che long coc"], placeId: "long-coc" },
+    { keywords: ["xuan son", "vqg xuan son", "vuon quoc gia xuan son", "hang lang", "ban coi", "ban du"], placeId: "xuan-son" },
+    { keywords: ["thanh thuy", "khoang nong thanh thuy", "lynn times", "onsen thanh thuy", "suoi khoang thanh thuy", "ohayo onsen", "bamboo thanh thuy"], placeId: "thanh-thuy" },
+    { keywords: ["au co", "den mau au co", "hien luong"], placeId: "den-mau-au-co" },
+    { keywords: ["hung lo", "lang co hung lo", "dinh hung lo", "hat xoan hung lo", "hat xoan"], placeId: "hung-lo" },
+    { keywords: ["dam ao chau", "ao chau", "ao chau ha hoa"], placeId: "dam-ao-chau" },
+    { keywords: ["dao ngoc xanh", "kdl dao ngoc xanh", "cong vien nuoc dao ngoc xanh"], placeId: "dao-ngoc-xanh" },
+    { keywords: ["tam dao", "thi tran tam dao", "nha tho da tam dao", "cong troi tam dao"], placeId: "tam-dao" },
+    { keywords: ["tay thien", "thien vien truc lam tay thien", "quoc mau tay thien", "chua tay thien"], placeId: "tay-thien" },
+    { keywords: ["ban lac", "mai chau", "thung lung mai chau"], placeId: "ban-lac-mai-chau" },
+    { keywords: ["kim boi", "khoang nong kim boi", "suoi khoang kim boi"], placeId: "khoang-nong-kim-boi" },
+    { keywords: ["thung nai", "thac bo", "den thac bo", "long ho song da"], placeId: "thung-nai-song-da" },
+    { keywords: ["lang gom huong canh", "gom huong canh", "huong canh"], placeId: "lang-gom-huong-canh" },
+    { keywords: ["ho dai lai", "dai lai", "flamingo dai lai"], placeId: "ho-dai-lai" },
+    { keywords: ["chua ha tien", "chua ha vinh yen", "ha tien"], placeId: "chua-ha-tien" },
+    { keywords: ["bao tang muong", "khong gian van hoa muong"], placeId: "bao-tang-muong" },
+    { keywords: ["pa co", "san may pa co", "cho phien pa co"], placeId: "pa-co-san-may" },
+  ];
+
+  for (const item of PLACE_KEYWORD_MAP) {
+    if (item.keywords.some((kw) => norm.includes(kw))) {
+      const found = allPlacesPool.find((p) => p.id === item.placeId);
+      if (found && !matchedMap.has(found.id)) {
+        matchedMap.set(found.id, found);
+      }
+    }
+  }
+
+  // 2. Quét các điểm tham quan con & địa danh huyện
+  const SPOT_KEYWORD_MAP: Array<{ keywords: string[]; spotId: string; fallbackId?: string }> = [
+    { keywords: ["tam giang", "chua tam giang", "den tam giang", "bach hac", "nga ba hac", "ben got"], spotId: "viet-tri-spot-3", fallbackId: "den-hung" },
+    { keywords: ["van lang", "cong vien van lang", "cau di bo"], spotId: "viet-tri-spot-2", fallbackId: "den-hung" },
+    { keywords: ["lac long quan", "den lac long quan"], spotId: "viet-tri-spot-4", fallbackId: "den-hung" },
+    { keywords: ["vuon vua", "vuon vua resort"], spotId: "tam-nong-spot-0", fallbackId: "thanh-thuy" },
+    { keywords: ["lang suong", "den lang suong"], spotId: "thanh-thuy-spot-2", fallbackId: "thanh-thuy" },
+    { keywords: ["thac choi", "cu thang"], spotId: "thanh-son-spot-3", fallbackId: "long-coc" },
+    { keywords: ["ho ly", "dap ly"], spotId: "yen-lap-spot-0", fallbackId: "long-coc" },
+    { keywords: ["doan hung", "buoi doan hung", "song lo"], spotId: "district-doan-hung", fallbackId: "den-mau-au-co" },
+    { keywords: ["ha hoa", "hien luong"], spotId: "district-ha-hoa", fallbackId: "den-mau-au-co" },
+    { keywords: ["thanh son", "thit chua thanh son"], spotId: "district-thanh-son", fallbackId: "long-coc" },
+    { keywords: ["tan son"], spotId: "district-tan-son", fallbackId: "long-coc" },
+    { keywords: ["lam thao", "chu quyen", "lang dong"], spotId: "district-lam-thao", fallbackId: "hung-lo" },
+  ];
+
+  for (const spot of SPOT_KEYWORD_MAP) {
+    if (spot.keywords.some((kw) => norm.includes(kw))) {
+      const foundSpot = allPlacesPool.find((p) => p.id === spot.spotId) || allPlacesPool.find((p) => p.id === spot.fallbackId);
+      if (foundSpot && !matchedMap.has(foundSpot.id)) {
+        matchedMap.set(foundSpot.id, foundSpot);
+      }
+    }
+  }
+
+  return Array.from(matchedMap.values());
+}
+
+/**
+ * Kiểm tra xem người dùng có đang yêu cầu ghép lộ tuyến / ghép lịch trình ngẫu nhiên hay không
+ */
+export function checkIsRouteCombinerIntent(lower: string): boolean {
+  // 1. Chứa từ khóa ghép trực tiếp hoặc kết hợp
+  const hasGhep =
+    /ghép|ghep|kết hợp|ket hop|liên tuyến|lien tuyen|ghép lộ tuyến|ghep lo tuyen|ghép lịch trình|ghep lich trinh|ghép tour|ghep tour|ghép các điểm|ghep cac diem|ghép tuyến|ghep tuyen|lộ tuyến phù hợp/i.test(lower);
+
+  // 2. Chứa từ khóa ngẫu nhiên
+  const hasNgauNhien =
+    /ngẫu nhiên|ngau nhien|bất kỳ|bat ky|tuỳ chọn|tuy chon/i.test(lower);
+
+  // 3. Có số người và hỏi lộ tuyến / lịch trình
+  const hasPax =
+    /\b\d+\s*(?:người|nguoi|khách|khach|thành viên|thanh vien|bạn|ban|pax|mem)\b/i.test(lower) ||
+    /cặp đôi|gia đình|đoàn/i.test(lower);
+  const hasTour =
+    /lộ tuyến|lo tuyen|lịch trình|lich trinh|tour|kế hoạch|chuyến đi|phương án/i.test(lower);
+
+  // 4. Có từ 2 địa danh xuất hiện cùng nhau
+  let placeHits = 0;
+  const majorKeyPatterns = [
+    /đền hùng|den hung|hùng vương/,
+    /long cốc|long coc|đồi chè|doi che/,
+    /xuân sơn|xuan son/,
+    /thanh thủy|thanh thuy|khoáng nóng|onsen/,
+    /tam đảo|tam dao/,
+    /tây thiên|tay thien/,
+    /hùng lô|hung lo|hát xoan/,
+    /âu cơ|au co/,
+    /ao châu|ao chau/,
+    /đảo ngọc xanh|dao ngoc xanh/,
+    /vườn vua|vuon vua/,
+    /lăng sương|lang suong/,
+    /thác chòi|thac choi/,
+    /đoan hùng|doan hung/,
+    /hạ hòa|ha hoa/,
+    /thanh sơn|thanh son/,
+    /tân sơn|tan son/,
+    /mai châu|mai chau/,
+    /hòa bình|hoa binh/,
+  ];
+  for (const kp of majorKeyPatterns) {
+    if (kp.test(lower)) placeHits++;
+  }
+
+  if (hasGhep) return true;
+  if (hasNgauNhien && (hasPax || hasTour || /du lịch|đi chơi|đi đâu/i.test(lower))) return true;
+  if (placeHits >= 2 && (hasTour || /đi|du lịch|gợi ý|tư vấn|sắp xếp|tuyến|cho tôi/i.test(lower))) return true;
+  if (hasPax && hasTour && (lower.includes("lộ tuyến") || lower.includes("phù hợp") || lower.includes("ghép"))) return true;
+
+  // Người dùng hỏi trực tiếp câu của user: "chưa thể ghép lộ tuyến", "muốn nó có thể ghép", "ghép các lịch trình ngẫu nhiên"
+  if (
+    (lower.includes("ghép") && (lower.includes("lộ tuyến") || lower.includes("lịch trình") || lower.includes("tour") || lower.includes("người"))) ||
+    (lower.includes("lộ tuyến") && lower.includes("ngẫu nhiên")) ||
+    (lower.includes("lịch trình") && lower.includes("ngẫu nhiên"))
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Xử lý ghép lộ tuyến thông minh và đưa ra lộ tuyến phù hợp nhất cho số lượng người ngẫu nhiên
+ */
+export function handleDynamicRouteCombiner(
+  rawText: string,
+  survey: AiSurveyState,
+  userName?: string
+): AiResponseResult | null {
+  const lower = rawText.toLowerCase();
+  const greeting = userName ? `Chào **${userName}**! ` : "Dạ, ";
+
+  // 1. Trích xuất số lượng người ngẫu nhiên (N)
+  let travelers = 4; // Mặc định gia đình/nhóm bạn
+  let isExplicitTravelers = false;
+
+  const travMatch = rawText.match(/\b(\d+)\s*(?:người|nguoi|khách|khach|thành viên|thanh vien|bạn|ban|vé|ve|pax|mem)\b/i);
+  if (travMatch && travMatch[1]) {
+    travelers = Math.max(1, Math.min(200, parseInt(travMatch[1], 10)));
+    isExplicitTravelers = true;
+  } else if (/cặp đôi|hai người|2 vợ chồng|đôi bạn/i.test(lower)) {
+    travelers = 2;
+    isExplicitTravelers = true;
+  } else if (/solo|1 mình|một mình|đi lẻ/i.test(lower)) {
+    travelers = 1;
+    isExplicitTravelers = true;
+  } else if (/gia đình nhỏ|nhà 3 người/i.test(lower)) {
+    travelers = 3;
+    isExplicitTravelers = true;
+  } else if (/gia đình|nhà 4 người/i.test(lower)) {
+    travelers = 4;
+    isExplicitTravelers = true;
+  } else if (/đoàn đông|công ty|cơ quan/i.test(lower)) {
+    travelers = 20;
+    isExplicitTravelers = true;
+  } else if (survey.travelers && survey.travelers !== 2) {
+    travelers = survey.travelers;
+    isExplicitTravelers = true;
+  } else if (/ngẫu nhiên/i.test(lower)) {
+    // Nếu người dùng yêu cầu ngẫu nhiên, ta chọn ngẫu nhiên các số lượng thực tế
+    const samplePax = [2, 4, 6, 8, 12, 20];
+    travelers = samplePax[Math.floor(Math.random() * samplePax.length)];
+  }
+
+  // 2. Trích xuất thời lượng (Số ngày D, số đêm K)
+  let durationDays = 2;
+  let durationNights = 1;
+
+  if (/\b1\s*(?:ngày|ngay)\b|trong ngày|sáng đi chiều về|di trong ngay/i.test(lower)) {
+    durationDays = 1;
+    durationNights = 0;
+  } else if (/\b3\s*(?:ngày|ngay)\b|3n2d|3n2đ|ba ngày/i.test(lower)) {
+    durationDays = 3;
+    durationNights = 2;
+  } else if (/\b4\s*(?:ngày|ngay)\b|4n3d/i.test(lower)) {
+    durationDays = 4;
+    durationNights = 3;
+  } else if (/\b2\s*(?:ngày|ngay)\b|2n1d|2n1đ|hai ngày/i.test(lower)) {
+    durationDays = 2;
+    durationNights = 1;
+  }
+
+  // 3. Trích xuất danh sách các điểm người dùng muốn ghép
+  const extractedPlaces = extractAllMentionedPlaces(rawText);
+  let chosenPlaces: Place[] = [];
+  let routeTheme = "";
+  let routeDescription = "";
+
+  const allPlacesPool: Place[] = [...places, ...getAllDistrictPlaces()];
+
+  if (extractedPlaces.length >= 2) {
+    // Người dùng chỉ định từ 2 điểm cụ thể trở lên
+    chosenPlaces = [...extractedPlaces];
+    routeTheme = `Ghép Tuyến Theo Yêu Cầu (${chosenPlaces.map((p) => p.shortName).join(" – ")})`;
+    routeDescription = `Cung đường được tối ưu hóa địa lý kết nối các điểm du lịch bạn đã chọn, hạn chế tối đa việc di chuyển vòng vèo.`;
+  } else if (extractedPlaces.length === 1) {
+    // Người dùng chỉ định 1 điểm then chốt -> Ghép thêm các điểm vệ tinh đẹp nhất
+    const anchor = extractedPlaces[0];
+    chosenPlaces.push(anchor);
+
+    if (anchor.id === "den-hung") {
+      const pThanhThuy = allPlacesPool.find((p) => p.id === "thanh-thuy") || places[3];
+      const pHungLo = allPlacesPool.find((p) => p.id === "hung-lo") || places[5];
+      chosenPlaces.push(pHungLo, pThanhThuy);
+      routeTheme = `Tuyến Di Sản Cội Nguồn & Suối Khoáng Nóng Thư Giãn`;
+      routeDescription = `Kết hợp linh thiêng Đền Hùng, làng cổ Hùng Lô nghe Hát Xoan và nghỉ dưỡng Onsen Radon phục hồi sức khỏe tại Thanh Thủy.`;
+    } else if (anchor.id === "long-coc" || anchor.id === "xuan-son") {
+      const pLongCoc = allPlacesPool.find((p) => p.id === "long-coc") || places[1];
+      const pXuanSon = allPlacesPool.find((p) => p.id === "xuan-son") || places[2];
+      chosenPlaces = [pLongCoc, pXuanSon];
+      routeTheme = `Tuyến Sinh Thái Đại Ngàn & Săn Mây Ốc Đảo Chè`;
+      routeDescription = `Hành trình ngắm bình minh đồi chè bát úp Long Cốc bồng bềnh trong mây và trekking rừng nguyên sinh VQG Xuân Sơn.`;
+    } else if (anchor.id === "thanh-thuy") {
+      const pDenHung = allPlacesPool.find((p) => p.id === "den-hung") || places[0];
+      const pDaoNgoc = allPlacesPool.find((p) => p.id === "dao-ngoc-xanh") || places[7];
+      chosenPlaces.push(pDenHung, pDaoNgoc);
+      routeTheme = `Tuyến Nghỉ Dưỡng Onsen Khoáng Nóng & Di Sản`;
+      routeDescription = `Tận hưởng tắm khoáng nóng Radon chuẩn Nhật Bản, vui chơi công viên nước và chiêm bái di sản cội nguồn.`;
+    } else {
+      const pDenHung = allPlacesPool.find((p) => p.id === "den-hung") || places[0];
+      chosenPlaces.push(pDenHung);
+      routeTheme = `Lộ Tuyến Ghép Khám Phá ${anchor.shortName}`;
+      routeDescription = `Cung đường tối ưu nối liền các danh lam thắng cảnh tiêu biểu của vùng Đất Tổ.`;
+    }
+  } else {
+    // Người dùng KHÔNG chỉ định điểm nào hoặc yêu cầu GHÉP NGẪU NHIÊN
+    // Ta chọn một trong 4 LỘ TUYẾN GHÉP NGẪU NHIÊN KINH ĐIỂN CỦA ĐẤT TỔ
+    const RANDOM_ROUTES = [
+      {
+        theme: "Lộ Tuyến Ghép 1: DI SẢN CỘI NGUỒN & NGHỈ DƯỠNG ONSEN RADON",
+        desc: "Cân bằng hoàn hảo giữa hành hương cội nguồn Đền Hùng linh thiêng và tắm khoáng nóng Radon thư thái tại Thanh Thủy.",
+        placeIds: ["den-hung", "hung-lo", "thanh-thuy", "dao-ngoc-xanh"],
+      },
+      {
+        theme: "Lộ Tuyến Ghép 2: SINH THÁI ĐẠI NGÀN & SĂN MÂY ỐC ĐẢO CHÈ KỲ THÚ",
+        desc: "Khám phá ốc đảo chè bát úp Long Cốc đẹp nhất Việt Nam, thám hiểm hang Lạng và đại ngàn nguyên sinh VQG Xuân Sơn.",
+        placeIds: ["long-coc", "xuan-son"],
+      },
+      {
+        theme: "Lộ Tuyến Ghép 3: TÂM LINH ĐẤT MẸ ÂU CƠ & NON NƯỚC 99 NGÁCH ĐẦM AO CHÂU",
+        desc: "Về miền đất Mẹ Âu Cơ Hiền Lương, ngồi thuyền thưởng ngoạn đầm Ao Châu và thưởng thức bưởi tiến Vua Đoan Hùng.",
+        placeIds: ["den-hung", "dam-ao-chau", "den-mau-au-co"],
+      },
+      {
+        theme: "Lộ Tuyến Ghép 4: LIÊN TUYẾN ĐẤT TỔ PHÚ THỌ – PHỐ NÚI TAM ĐẢO SƯƠNG MÙ",
+        desc: "Kết nối di sản cội nguồn Đất Tổ qua cầu Hạc Trì sang phố núi Tam Đảo tận hưởng khí hậu 4 mùa trong ngày.",
+        placeIds: ["den-hung", "thanh-thuy", "tam-dao"],
+      },
+    ];
+
+    // Chọn ngẫu nhiên 1 lộ tuyến tuyệt phẩm
+    const chosenPreset = RANDOM_ROUTES[Math.floor(Math.random() * RANDOM_ROUTES.length)];
+    routeTheme = chosenPreset.theme;
+    routeDescription = chosenPreset.desc;
+    chosenPlaces = chosenPreset.placeIds
+      .map((id) => allPlacesPool.find((p) => p.id === id))
+      .filter((p): p is Place => Boolean(p));
+  }
+
+  if (chosenPlaces.length === 0) {
+    chosenPlaces = [places[0], places[3]]; // Fallback Đền Hùng & Thanh Thủy
+  }
+
+  // Sắp xếp thứ tự các điểm theo cự ly thực tế (Route Optimization)
+  // Ưu tiên điểm gần trung tâm TP. Việt Trì hoặc vị trí người dùng trước
+  chosenPlaces.sort((a, b) => a.distanceFromVietTri - b.distanceFromVietTri);
+
+  // 4. Phân tích phương tiện & Lưu trú tối ưu theo số lượng người (N)
+  let recommendedTransport = "Ô tô riêng";
+  let transportReason = "";
+  let transportCostEstimate = "";
+
+  if (travelers <= 2) {
+    recommendedTransport = "Ô tô riêng / Xe máy du lịch";
+    transportReason = "Đoàn 1 – 2 người: Đi xe máy ngắm cảnh rất linh hoạt, hoặc đi xe ô tô 4-5 chỗ / xe khách Limousine đón trả tận nơi.";
+    transportCostEstimate = "~150.000đ – 250.000đ/người (tiền xăng hoặc vé Limousine khứ hồi)";
+  } else if (travelers <= 5) {
+    recommendedTransport = "Ô tô riêng 5 – 7 chỗ";
+    transportReason = "Đoàn 3 – 5 người (gia đình nhỏ / nhóm bạn): Rất phù hợp đi xe ô tô 5 hoặc 7 chỗ tự lái, chia sẻ chi phí xăng dầu cầu đường cực kỳ tiết kiệm.";
+    transportCostEstimate = "~500.000đ – 700.000đ cả chuyến cho toàn đoàn (~120.000đ – 150.000đ/người)";
+  } else if (travelers <= 8) {
+    recommendedTransport = "Xe ô tô 7 chỗ lớn / Limousine 9 chỗ";
+    transportReason = "Đoàn 6 – 8 người: Đi 1 xe ô tô 7 chỗ lớn hoặc thuê xe Limousine 9 chỗ có tài xế đưa đón, không gian rộng rãi và thoải mái.";
+    transportCostEstimate = "~1.200.000đ – 1.600.000đ trọn gói xe cho cả đoàn";
+  } else if (travelers <= 16) {
+    recommendedTransport = "Thuê xe du lịch 16 chỗ (Ford Transit / Solati)";
+    transportReason = `Đoàn ${travelers} người: Thuê trọn gói xe du lịch 16 chỗ có tài xế riêng, vừa an toàn, vừa gắn kết cả đoàn trong suốt hành trình.`;
+    transportCostEstimate = "~1.800.000đ – 2.500.000đ trọn gói 2 ngày cho cả đoàn (~150.000đ/người)";
+  } else if (travelers <= 29) {
+    recommendedTransport = "Thuê xe du lịch 29 chỗ (Hyundai County / Thaco)";
+    transportReason = `Đoàn ${travelers} người (cơ quan / hội nhóm): Thuê xe 29 chỗ đời mới điều hòa mát mẻ, khoang hành lý rộng rãi.`;
+    transportCostEstimate = "~3.000.000đ – 3.800.000đ trọn gói 2 ngày cho cả đoàn (~130.000đ/người)";
+  } else {
+    recommendedTransport = "Thuê xe du lịch 45 chỗ Universe cao cấp";
+    transportReason = `Đoàn ${travelers} người (đoàn thể lớn / công ty): Xe du lịch 45 chỗ Universe giảm xóc bóng hơi êm ái, bãi đỗ xe tại các danh thắng Đất Tổ đều rất rộng rãi.`;
+    transportCostEstimate = "~4.500.000đ – 6.000.000đ trọn gói 2 ngày cho cả đoàn (~120.000đ/người)";
+  }
+
+  // Lưu trú đề xuất
+  const numRooms = Math.ceil(travelers / 2);
+  let stayAdvice = `Cần khoảng **${numRooms} phòng đôi tiêu chuẩn** (2 người/phòng).`;
+  if (travelers >= 6 && chosenPlaces.some((p) => p.id === "thanh-thuy")) {
+    stayAdvice += ` Hoặc có thể thuê **1 căn biệt thự Shoptel / Villa khoáng nóng nguyên căn** tại Lynn Times Thanh Thủy để cả đoàn sinh hoạt và tắm khoáng riêng tư!`;
+  }
+
+  // 5. Dự toán ngân sách chi tiết cho đoàn N người
+  let baseCostPerPerson = 1350000;
+  if (durationDays === 1) baseCostPerPerson = 650000;
+  if (durationDays === 3) baseCostPerPerson = 2250000;
+
+  const totalGroupCost = baseCostPerPerson * travelers;
+
+  // 6. Xây dựng GeneratedItinerary hoàn chỉnh để hiển thị trên web
+  const itinerary = buildItinerary({
+    anchorPlaceId: chosenPlaces[0].id,
+    selectedPlaceIds: chosenPlaces.map((p) => p.id),
+    strictSelectedOnly: chosenPlaces.length >= 2,
+    durationDays,
+    durationNights,
+    transport: recommendedTransport,
+    budget: "Tiêu chuẩn",
+    travelers,
+    style: "Ghép tuyến tối ưu",
+    userLocation: survey.userLocation,
+  });
+
+  // 7. Định dạng nội dung tin nhắn Markdown
+  const stopsFormatted = chosenPlaces.map((p, idx) => `**Chặng ${idx + 1}:** ${p.name} *(${p.region})*`).join("\n• ");
+
+  let responseText = `${greeting}Em đã phân tích địa lý và **ghép thành công Phương Án Lộ Tuyến Phù Hợp Nhất** cho đoàn mình! 🌿✨\n\n`;
+
+  responseText += `🗺️ **${routeTheme}**\n`;
+  responseText += `📌 *${routeDescription}*\n\n`;
+
+  responseText += `📋 **TỔNG QUAN LỘ TRÌNH GHÉP:**\n`;
+  responseText += `• **Thời lượng:** ${durationDays} Ngày ${durationNights > 0 ? `${durationNights} Đêm` : "(đi về trong ngày)"}\n`;
+  responseText += `• **Quy mô đoàn:** **${travelers} thành viên** ${!isExplicitTravelers ? `*(Em đang tính toán mẫu cho đoàn ${travelers} người, bạn có thể đổi số người tùy ý nhé)*` : ""}\n`;
+  responseText += `• **Tổng cự ly di chuyển:** Khoảng **~${itinerary.totalDistanceKm} km** (${itinerary.totalDriveTime})\n`;
+  responseText += `• **Cung đường ghé thăm:**\n• ${stopsFormatted}\n\n`;
+
+  responseText += `---\n\n`;
+  responseText += `🧭 **CHI TIẾT LỘ TRÌNH TỪNG KHUNG GIỜ:**\n\n`;
+
+  if (durationDays === 1) {
+    responseText += `☀️ **Buổi sáng (07:30 – 11:30):** Khởi hành từ TP. Việt Trì đi **${chosenPlaces[0].name}**. Chiêm bái, ngắm cảnh và chụp ảnh check-in.\n`;
+    responseText += `🍲 **Buổi trưa (11:30 – 13:30):** Dùng bữa trưa đặc sản vùng Đất Tổ (thịt chua Thanh Sơn, cá lăng sông Lô, gà đồi). Nghỉ ngơi thư giãn.\n`;
+    if (chosenPlaces.length > 1) {
+      responseText += `🌤️ **Buổi chiều (13:30 – 16:45):** Di chuyển sang **${chosenPlaces[1].name}**. Trải nghiệm văn hóa bản địa / tắm suối khoáng thư giãn.\n`;
+    }
+    responseText += `🌆 **Buổi tối (17:00 – 18:30):** Ghé mua đặc sản OCOP làm quà và khởi hành về lại điểm xuất phát an toàn!\n\n`;
+  } else {
+    responseText += `📅 **NGÀY 1: KHỞI HÀNH – ${chosenPlaces[0].shortName.toUpperCase()}${chosenPlaces.length > 1 ? ` – ${chosenPlaces[1].shortName.toUpperCase()}` : ""}:**\n`;
+    responseText += `• **07:30 – 11:30:** Xuất phát từ trung tâm, tham quan & trải nghiệm **${chosenPlaces[0].name}**.\n`;
+    responseText += `• **11:30 – 13:00:** Dùng bữa trưa ẩm thực địa phương (cá sông Lô om chuối đậu, gà nhiều cựa, rau sắng bản địa).\n`;
+    if (chosenPlaces.length > 1) {
+      responseText += `• **13:30 – 16:30:** Di chuyển đến **${chosenPlaces[1].name}**, tham quan danh thắng / tắm khoáng nóng Onsen phục hồi sinh lực.\n`;
+    }
+    responseText += `• **17:00 – 18:30:** Nhận phòng nghỉ ngơi (${stayAdvice}).\n`;
+    responseText += `• **19:00 – 21:30:** Bữa tối tiệc đặc sản, dạo phố đêm / giao lưu lửa trại / ngắm cảnh thư thái.\n\n`;
+
+    responseText += `📅 **NGÀY 2: ${chosenPlaces.length > 2 ? chosenPlaces[2].shortName.toUpperCase() : "CHECK-IN SÁNG"} – MUA ĐẶC SẢN OCOP – KẾT THÚC:**\n`;
+    responseText += `• **07:00 – 08:30:** Thưởng thức bữa sáng đặc sản, ngắm cảnh bình minh / săn mây sớm.\n`;
+    if (chosenPlaces.length > 2) {
+      responseText += `• **08:30 – 11:00:** Khám phá **${chosenPlaces[2].name}**, lưu lại những bức ảnh kỷ niệm tuyệt đẹp.\n`;
+    } else {
+      responseText += `• **08:30 – 11:00:** Dạo chợ quê truyền thống, trải nghiệm đời sống văn hóa của bà con Đất Tổ.\n`;
+    }
+    responseText += `• **11:30 – 13:00:** Dùng bữa trưa và làm thủ tục trả phòng khách sạn.\n`;
+    responseText += `• **13:30 – 15:30:** Dừng chân tại các điểm OCOP uy tín mua thịt chua, bưởi Đoan Hùng, chè búp, bánh tai làm quà biếu.\n`;
+    responseText += `• **15:30 – 17:00:** Lên xe trở về, kết thúc chuyến đi an toàn, vui vẻ và trọn vẹn!\n\n`;
+  }
+
+  responseText += `---\n\n`;
+  responseText += `👥 **PHƯƠNG ÁN TỐI ƯU CHO ĐOÀN ${travelers} NGƯỜI:**\n`;
+  responseText += `🚗 **Phương tiện đề xuất:** **${recommendedTransport}**\n`;
+  responseText += `   - *Lý do:* ${transportReason}\n`;
+  responseText += `   - *Dự toán di chuyển:* ${transportCostEstimate}\n`;
+  responseText += `🏨 **Phân bổ phòng lưu trú:** ${stayAdvice}\n\n`;
+
+  responseText += `💰 **BẢNG DỰ TOÁN KINH PHÍ ĐOÀN (${travelers} NGƯỜI):**\n`;
+  responseText += `• 🍲 Tiền ăn uống (${durationDays === 1 ? "1 bữa chính" : `${durationDays * 2 - 1} bữa chính + ăn sáng`}): ~${(baseCostPerPerson * 0.42).toLocaleString("vi-VN")}đ/người\n`;
+  responseText += `• 🏨 Tiền phòng lưu trú: ${durationNights > 0 ? `~${(baseCostPerPerson * 0.32).toLocaleString("vi-VN")}đ/người` : "0đ (đi về trong ngày)"}\n`;
+  responseText += `• 🎟️ Vé tham quan & tắm khoáng/dịch vụ: ~${(baseCostPerPerson * 0.15).toLocaleString("vi-VN")}đ/người\n`;
+  responseText += `• 🚗 Xăng xe / chi phí đi lại: ~${(baseCostPerPerson * 0.11).toLocaleString("vi-VN")}đ/người\n`;
+  responseText += `👉 **Dự toán bình quân:** **~${baseCostPerPerson.toLocaleString("vi-VN")} VNĐ / người**\n`;
+  responseText += `👉 **TỔNG KINH PHÍ TRỌN GÓI TOÀN ĐOÀN (${travelers} NGƯỜI):** **~${totalGroupCost.toLocaleString("vi-VN")} VNĐ**\n\n`;
+
+  responseText += `👉 *Em đã tải toàn bộ lịch trình chi tiết này vào hệ thống bản đồ số bên dưới. Bạn có thể bấm nút **Xem trên Trang Lịch Trình** để xem bản đồ GPS chỉ đường và thẻ chi tiết từng giờ nhé!*`;
+
+  const options = [
+    { label: "👉 Mở Toàn Bộ Lịch Trình Trên Bản Đồ GPS", value: "view_trip_now", icon: "🗺️" },
+    { label: "💾 Lưu vào Lịch trình của tôi", value: "save_trip_now", icon: "⭐" },
+    { label: "🔄 Đổi Tuyến Sinh Thái Long Cốc – Xuân Sơn", value: "clarify_route_long_coc", icon: "🍃" },
+    { label: "🔄 Đổi Tuyến Di Sản Đền Hùng – Thanh Thủy", value: "clarify_route_hung_thuy", icon: "🏛️" },
+    { label: `👥 Đổi đoàn thành 2 người`, value: "choose_family_2", icon: "👫" },
+    { label: `👥 Đổi đoàn thành 6 người`, value: "choose_family_6", icon: "👨‍👩‍👧‍👦" },
+    { label: `👥 Đổi đoàn thành 15 người`, value: "choose_family_15", icon: "🚐" },
+  ];
+
+  return {
+    text: responseText,
+    itinerary,
+    options,
+    updatedSurvey: {
+      ...survey,
+      anchorPlaceId: chosenPlaces[0].id,
+      selectedPlaceIds: chosenPlaces.map((p) => p.id),
+      durationDays,
+      durationNights,
+      travelers,
+      transport: recommendedTransport,
+      destinationText: routeTheme,
+    },
+  };
+}
+
 export function handleSmartKnowledgeQuery(
   rawText: string,
   survey: AiSurveyState,
@@ -232,12 +667,14 @@ export function handleSmartKnowledgeQuery(
   const greeting = userName ? `Chào **${userName}**! ` : "Dạ, ";
 
   // 1. GREETING & IDENTITY
-  if (
-    /^(chào|chao|xin chào|xin chao|hello|hi|alo|hé lô|helo|chào em|chào bạn|chao em|chao ban|ad ơi|ad oi|bạn ơi|ban oi)\b/i.test(lower) ||
+  const isGreetingQuery =
+    /^(?:chào|chao|xin chào|xin chao|hello|alo|hé lô|helo|chào em|chào bạn|chao em|chao ban|ad ơi|ad oi|bạn ơi|ban oi)(?:\s|$|[!.,?])/i.test(lower) ||
+    /^hi(?:\s|$|[!.,?])/i.test(lower) ||
     lower === "chào" ||
     lower === "hi" ||
-    lower === "hello"
-  ) {
+    lower === "hello";
+
+  if (isGreetingQuery && !checkIsRouteCombinerIntent(lower)) {
     return {
       text:
         `${greeting}Em là **Trợ lý Du lịch Đất Tổ AI**, rất vui được đồng hành cùng bạn! 🌿\n\n` +
@@ -302,7 +739,16 @@ function formatAttractionInfo(
   };
 }
 
-// 1.1. SPECIFIC PLACE OR DISTRICT INFORMATION LOOKUP
+// 1.1. DYNAMIC ROUTE COMBINER & RANDOM ITINERARY GENERATOR
+  // Ghép lộ tuyến thông minh và đưa ra lộ tuyến phù hợp nhất khi người dùng muốn ghép các lịch trình ngẫu nhiên cho số lượng người ngẫu nhiên
+  if (checkIsRouteCombinerIntent(lower)) {
+    const combinedRouteResult = handleDynamicRouteCombiner(trimmed, survey, userName);
+    if (combinedRouteResult) {
+      return combinedRouteResult;
+    }
+  }
+
+  // 1.2. SPECIFIC PLACE OR DISTRICT INFORMATION LOOKUP
   // Khi người xem hỏi về 1 địa điểm (ví dụ: "Đền Hùng", "Thông tin về Đền Hùng", "Đồi chè Long Cốc", "Chùa Tam Giang", "Thanh Thủy có gì", "Xuân Sơn ở đâu"...)
   // Hệ thống sẽ lập tức cung cấp đầy đủ thông tin: Vị trí, giờ mở cửa, giá vé, điểm nhấn, cách đi, quán ăn & nơi lưu trú!
   const destinationFound = resolveAnyDestinationInfo(trimmed);

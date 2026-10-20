@@ -752,7 +752,8 @@ export default function AiChatbotWidget({
     }
 
     if (value.startsWith("choose_family_")) {
-      handleProcessInput("Gia đình 4 người 2 ngày 1 đêm");
+      const paxNum = value.replace("choose_family_", "");
+      handleProcessInput(`Lên lộ tuyến ghép cho đoàn ${paxNum} người`);
       return;
     }
 
