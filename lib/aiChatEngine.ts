@@ -1144,7 +1144,7 @@ function handleRouteJourneyInquiry(
       `${userGreeting}Tuyến đường khám phá từ **${route.originName}** lên **${route.destinationName}** (kết nối Đồi chè Long Cốc & VQG Xuân Sơn) dài khoảng **48 – 55 km** (~1h15p di chuyển ô tô hoặc xe máy theo tuyến QL32C qua cầu Phong Châu nối QL32). Đây là cung đường du lịch tuyệt đẹp để bạn vừa ngắm cảnh trung du, vừa dừng chân thưởng thức trọn vẹn ẩm thực Đất Tổ!\n\n` +
       `Dưới đây là gợi ý chi tiết các **điểm dừng chân ngắm cảnh & ăn uống nổi bật nhất** trên hành trình:\n\n` +
       `---\n\n` +
-      `### 🛑 1. Các Điểm Dừng Chân Ngắm Cảnh & Check-in Trên Đường Đi\n` +
+      `🛑 **1. Các Điểm Dừng Chân Ngắm Cảnh & Check-in Trên Đường Đi**\n` +
       `1. 🌉 **Km 15 – 20: Cầu Phong Châu & Bến sông Hồng (Lâm Thao – Tam Nông)**:\n` +
       `   - Dừng chân ngắm toàn cảnh dòng sông Hồng cuộn sóng phù sa đỏ, check-in đồi cọ trung du xanh ngút ngàn.\n` +
       `   - *(Tùy chọn tâm linh)*: Ghé thăm Đền Lăng Sương (xã Trung Nghĩa, Thanh Thủy - quê mẹ Âu Cơ linh thiêng bên bờ sông Đà xanh ngắt) hoặc Làng cổ Hùng Lô nghe Hát Xoan.\n` +
@@ -1157,7 +1157,7 @@ function handleRouteJourneyInquiry(
       `5. 🌲 **Vườn quốc gia Xuân Sơn (Tân Sơn)**:\n` +
       `   - Khám phá Hang Na kỳ vĩ, Thác Chín Tầng và những bản làng người Dao Tiền (bản Cỏi, bản Dù) mộc mạc bên suối.\n\n` +
       `---\n\n` +
-      `### 🥢 2. Các Điểm Dừng Chân Ăn Uống & Đặc Sản Theo Từng Chặng\n` +
+      `🥢 **2. Các Điểm Dừng Chân Ăn Uống & Đặc Sản Theo Từng Chặng**\n` +
       `- 🥟 **Bữa sáng tại Việt Trì (Điểm xuất phát)**:\n` +
       `  - Thưởng thức món **Bánh tai Phú Thọ** dẻo thơm ngậy nhân thịt mỡ hành tiêu nóng hổi (Quán Bà Định, P. Tân Dân) hoặc Bún riêu cua sông Lô đậm đà.\n` +
       `- 🥤 **Giải khát dọc đường (Ngã ba Cổ Tiết / Tam Nông)**:\n` +
@@ -1171,7 +1171,7 @@ function handleRouteJourneyInquiry(
       `  - Thưởng thức **Gà chín cựa Xuân Sơn tiến Vua** nướng than hoa rắc lá chanh giòn ngọt, rau dớn rừng xào tỏi, canh măng đắng.\n` +
       `- 🎁 **Quà đặc sản mang về:** Thịt chua ống nứa Thanh Sơn, Chè búp tím Long Cốc, Gạo nếp gà gáy Mỹ Lung.\n\n` +
       `---\n\n` +
-      `### 📋 3. Lịch Trình Chi Tiết 2 Ngày 1 Đêm Gợi Ý\n` +
+      `📋 **3. Lịch Trình Chi Tiết 2 Ngày 1 Đêm Gợi Ý**\n` +
       `- **Ngày 1 (Việt Trì ➔ Thanh Sơn ➔ Đồi chè Long Cốc)**:\n` +
       `  - *07h00:* Thưởng thức bánh tai tại Việt Trì, khởi hành theo QL32C.\n` +
       `  - *08h30:* Dừng chân check-in Cầu Phong Châu, ngắm cảnh và nghỉ ngơi tại Thác Chòi Cự Thắng mát rượi.\n` +

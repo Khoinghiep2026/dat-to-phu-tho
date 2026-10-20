@@ -1205,9 +1205,11 @@ export default function AiChatbotWidget({
   );
 }
 
-// Utility to parse markdown-like bold (**text**) and italic (*text*)
+// Utility to parse markdown-like bold (**text**), italic (*text*), and strip markdown header hashes (#, ##, ###, ####)
 function renderFormattedText(text: string) {
-  const parts = text.split(/(\*\*.*?\*\*|\*.*?\*)/g);
+  // Strip leading & trailing markdown header hashes like #, ##, ###, ####
+  const cleanLine = text.replace(/^\s*#{1,6}\s*/, "").replace(/\s*#{1,6}\s*$/, "");
+  const parts = cleanLine.split(/(\*\*.*?\*\*|\*.*?\*)/g);
   return parts.map((part, index) => {
     if (part.startsWith("**") && part.endsWith("**")) {
       return <strong key={index}>{part.slice(2, -2)}</strong>;
