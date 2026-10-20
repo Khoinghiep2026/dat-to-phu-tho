@@ -4739,17 +4739,8 @@ export default function Home() {
 
     // For Vietnamese: ALWAYS use the real recorded female voice ("giong mau") as requested by user
     if (audioLang === "vi") {
-      let specificAudioUrl: string | null = null;
-      if (placeId) {
-        if (TOUR_AUDIO_GUIDES?.tourLongCocXuanSon?.[placeId]?.audioFile) {
-          specificAudioUrl = TOUR_AUDIO_GUIDES.tourLongCocXuanSon[placeId].audioFile;
-        } else if (TOUR_AUDIO_GUIDES?.tour2n1d?.[placeId]?.audioFile) {
-          specificAudioUrl = TOUR_AUDIO_GUIDES.tour2n1d[placeId].audioFile;
-        }
-      }
-
-      const primaryUrl = specificAudioUrl || "/audio/giong_mau.m4a";
-      const fallbackUrl = specificAudioUrl || "/audio/giong_mau.wav";
+      const primaryUrl = "/audio/giong_mau.m4a";
+      const fallbackUrl = "/audio/giong_mau.wav";
 
       try {
         if (placeId) setSpeechPlaceId(placeId);
