@@ -296,7 +296,7 @@ export const places: Place[] = [
     duration: "2 – 3 giờ",
     distanceFromVietTri: 70,
     travelFromVietTri: "Khoảng 1 giờ 45 phút",
-    bestStart: "05:15",
+    bestStart: "03:00",
     warning: "Nên đến từ chiều hôm trước ngủ lại homestay dưới chân đồi để sáng sớm dậy săn mây dễ dàng.",
     lat: 21.1804,
     lng: 105.0708,

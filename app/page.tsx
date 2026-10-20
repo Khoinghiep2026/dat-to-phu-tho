@@ -4745,6 +4745,51 @@ export default function Home() {
     lastPlayedAudioRef.current = { textVi, textEn, onStateChange, placeId };
 
     const activeVoiceURI = voiceOverride || selectedVoiceURI;
+
+    // Special handler for recorded female narrator sample (giong mau)
+    if (activeVoiceURI === "ai-female-sample") {
+      try {
+        if (placeId) setSpeechPlaceId(placeId);
+        setAudioState("playing");
+        setAudioGuidePlaying(true);
+        onStateChange?.(true);
+
+        const primaryUrl = "/audio/giong_mau.m4a";
+        const fallbackUrl = "/audio/giong_mau.wav";
+        const audio = new Audio(primaryUrl);
+        audio.volume = audioVolumeRef.current;
+        audio.playbackRate = audioRateRef.current;
+        htmlAudioRef.current = audio;
+
+        const onFinished = () => {
+          if (htmlAudioRef.current === audio) {
+            htmlAudioRef.current = null;
+          }
+          setSpeechPlaceId(null);
+          setAudioState("idle");
+          setAudioGuidePlaying(false);
+          onStateChange?.(false);
+        };
+
+        const tryFallback = () => {
+          const fb = new Audio(fallbackUrl);
+          fb.volume = audioVolumeRef.current;
+          fb.playbackRate = audioRateRef.current;
+          htmlAudioRef.current = fb;
+          fb.onended = onFinished;
+          fb.onerror = onFinished;
+          fb.play().catch(onFinished);
+        };
+
+        audio.onended = onFinished;
+        audio.onerror = tryFallback;
+        await audio.play().catch(tryFallback);
+        return;
+      } catch (err) {
+        console.warn("Failed to play female sample audio:", err);
+      }
+    }
+
     const lang = audioLang;
     const allVoices = typeof window !== "undefined" && "speechSynthesis" in window
       ? window.speechSynthesis.getVoices()
@@ -8817,6 +8862,29 @@ export default function Home() {
                           onClick={() => handleVoiceChange("ai-female-north")}
                         >
                           🌸 Nữ êm dịu
+                        </button>
+                        <button
+                          type="button"
+                          style={{
+                            flex: 1,
+                            padding: "6px 10px",
+                            fontSize: "12px",
+                            fontWeight: 600,
+                            borderRadius: "6px",
+                            border: "1px solid currentColor",
+                            cursor: "pointer",
+                            background:
+                              selectedVoiceURI === "ai-female-sample"
+                                ? "var(--primary)"
+                                : "transparent",
+                            color:
+                              selectedVoiceURI === "ai-female-sample"
+                                ? "#fff"
+                                : "inherit",
+                          }}
+                          onClick={() => handleVoiceChange("ai-female-sample")}
+                        >
+                          🎙️ Bạn Nữ Đất Tổ
                         </button>
                       </div>
                     )}

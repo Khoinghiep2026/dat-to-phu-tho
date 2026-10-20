@@ -1341,6 +1341,37 @@ export function processAiMessage(
     return buildOfficialLongCocXuanSonResponse(currentSurvey, userName ? `Chào **${userName}**! ` : "Dạ, ");
   }
 
+  // 2.3. Voice Sample Inquiry: User asks about female sample voice (from user audio message)
+  const normVoice = trimmed
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đĐ]/g, "d");
+  if (
+    normVoice.includes("giong bn nu") ||
+    normVoice.includes("giong ban nu") ||
+    normVoice.includes("giong nu") ||
+    normVoice.includes("giong em nu") ||
+    normVoice.includes("nghe giong nu") ||
+    normVoice.includes("bat giong nu") ||
+    normVoice.includes("giong mau") ||
+    normVoice.includes("giong doc mau") ||
+    normVoice.includes("cho giong bn nu") ||
+    normVoice.includes("cho giong ban nu")
+  ) {
+    return {
+      text:
+        `🎙️ **Giọng đọc Thuyết minh Bạn Nữ Đất Tổ (Bản thu âm trực tiếp người thật)** đã được tích hợp hoàn tất vào hệ thống!\n\n` +
+        `Bạn có thể bấm vào nút **[🎙️ Nghe Giọng Bạn Nữ Thuyết Minh]** bên dưới hoặc nhấn trực tiếp vào biểu tượng giọng đọc trên bong bóng chat để trải nghiệm ngay âm sắc truyền cảm, tự nhiên và chân thực nhé! 🎧✨`,
+      options: [
+        { label: "🎙️ Nghe Giọng Bạn Nữ Thuyết Minh", value: "play_sample_voice", icon: "🎧" },
+        { label: "👉 Mở Lịch Trình Long Cốc – Xuân Sơn", value: "tour_longcoc_xuanson_1n", icon: "🍃" },
+        { label: "🏛️ Tour Đền Hùng – Thanh Thủy 2N1Đ", value: "tour_official_2n1d", icon: "⭐" },
+      ],
+      updatedSurvey: currentSurvey,
+    };
+  }
+
 
   // =========================================================================
   // 2.5. ROUTE & JOURNEY INTENT: User asks for a route from Place A to Place B

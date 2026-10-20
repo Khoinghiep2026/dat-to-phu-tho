@@ -689,7 +689,8 @@ export default function AiChatbotWidget({
     }
 
     if (value === "play_sample_voice") {
-      togglePlayVoice(`sample-${Date.now()}`);
+      const targetMsg = [...messages].reverse().find((m) => m.sender === "ai");
+      togglePlayVoice(targetMsg?.id || `sample-${Date.now()}`);
       return;
     }
 
