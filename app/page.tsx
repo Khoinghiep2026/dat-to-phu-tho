@@ -3206,7 +3206,7 @@ export default function Home() {
   // Audio guide controls & voice customization (AI TTS + Browser Speech)
   const [audioLang, setAudioLang] = useState<LanguageCode>("vi");
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("ai-female-north");
+  const [selectedVoiceURI, setSelectedVoiceURI] = useState<string>("ai-female-sample");
   const [audioGuidePlaying, setAudioGuidePlaying] = useState(false);
   const [audioState, setAudioState] = useState<AudioState>("idle");
   const [speechPlaceId, setSpeechPlaceId] = useState<string | null>(null);
@@ -3235,10 +3235,8 @@ export default function Home() {
   // Load saved voice and language from localStorage on mount
   useEffect(() => {
     try {
-      const savedVoice = localStorage.getItem("datto_selected_voice");
-      if (savedVoice) {
-        setSelectedVoiceURI(savedVoice);
-      }
+      setSelectedVoiceURI("ai-female-sample");
+      localStorage.setItem("datto_selected_voice", "ai-female-sample");
       const savedLang = localStorage.getItem("datto_lang") as LanguageCode | null;
       if (savedLang && LANGUAGES[savedLang]) {
         setCurrentLang(savedLang);
@@ -3346,15 +3344,9 @@ export default function Home() {
 
   const voiceOptions = useMemo(() => {
     if (audioLang === "vi") {
-      const aiVoices = [
-        { id: "ai-female-north", label: "🌸 Giọng AI Nữ Hà Nội (Chuẩn miền Bắc - Êm ái)" },
-        { id: "ai-female-sample", label: "🎙️ Giọng bạn Nữ Đất Tổ (Mẫu thu âm người thật)" },
-        { id: "ai-male-north", label: "👔 Giọng AI Nam Hà Nội (Chuẩn miền Bắc - Trầm ấm)" },
+      return [
+        { id: "ai-female-sample", label: "🎙️ Giọng bạn Nữ Đất Tổ (Mặc định toàn hệ thống)" }
       ];
-      const browserVoices = availableVoices
-        .filter((v) => v.lang.toLowerCase().startsWith("vi"))
-        .map((v) => ({ id: v.voiceURI, label: `🖥️ ${v.name} (Hệ thống)` }));
-      return [...aiVoices, ...browserVoices];
     } else if (audioLang === "zh") {
       const aiVoices = [
         { id: "ai-zh-cn", label: "🇨🇳 普通话女声 (Chinese Standard)" },
@@ -4746,8 +4738,14 @@ export default function Home() {
 
     const activeVoiceURI = voiceOverride || selectedVoiceURI;
 
-    // Special handler for recorded female narrator sample (giong mau)
-    if (activeVoiceURI === "ai-female-sample") {
+    // Special handler for explicit female sample preview snippet
+    const isSamplePreview =
+      textToSpeak.includes("Mẫu thuyết minh bạn Nữ") ||
+      textToSpeak.includes("Mẫu giọng bạn Nữ") ||
+      textToSpeak.includes("giong_mau") ||
+      placeId === "sample-voice";
+
+    if (isSamplePreview) {
       try {
         if (placeId) setSpeechPlaceId(placeId);
         setAudioState("playing");
@@ -4796,10 +4794,7 @@ export default function Home() {
       : availableVoices;
     const targetVoices = allVoices.filter((v) => v.lang.toLowerCase().startsWith(lang));
 
-    const isMaleAi =
-      activeVoiceURI === "ai-male-north" ||
-      activeVoiceURI.toLowerCase().includes("nam") ||
-      activeVoiceURI.toLowerCase().includes("male");
+    const isMaleAi = false;
 
     // Check if user explicitly picked a browser system voice
     const isExplicitBrowserVoice = !activeVoiceURI.startsWith("ai-");
@@ -8803,89 +8798,30 @@ export default function Home() {
                   <div className="audio-settings-strip" style={{ marginTop: "10px", padding: "8px 12px", background: "var(--surface)", borderRadius: "var(--radius-sm)" }}>
                     {audioLang === "vi" && (
                       <div style={{ display: "flex", gap: "8px", marginBottom: "8px" }}>
-                        <button
-                          type="button"
-                          style={{
-                            flex: 1,
-                            padding: "6px 10px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            borderRadius: "6px",
-                            border: "1px solid currentColor",
-                            cursor: "pointer",
-                            background:
-                              selectedVoiceURI === "ai-male-north" ||
-                              selectedVoiceURI.toLowerCase().includes("nam") ||
-                              selectedVoiceURI.toLowerCase().includes("male")
-                                ? "var(--primary)"
-                                : "transparent",
-                            color:
-                              selectedVoiceURI === "ai-male-north" ||
-                              selectedVoiceURI.toLowerCase().includes("nam") ||
-                              selectedVoiceURI.toLowerCase().includes("male")
-                                ? "#fff"
-                                : "inherit",
-                          }}
-                          onClick={() => handleVoiceChange("ai-male-north")}
-                        >
-                          👔 Nam trầm ấm
-                        </button>
-                        <button
-                          type="button"
-                          style={{
-                            flex: 1,
-                            padding: "6px 10px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            borderRadius: "6px",
-                            border: "1px solid currentColor",
-                            cursor: "pointer",
-                            background:
-                              selectedVoiceURI === "ai-female-north" ||
-                              (!selectedVoiceURI.toLowerCase().includes("nam") &&
-                                !selectedVoiceURI.toLowerCase().includes("male") &&
-                                (selectedVoiceURI.toLowerCase().includes("nữ") ||
-                                  selectedVoiceURI.toLowerCase().includes("female") ||
-                                  selectedVoiceURI === "ai-female-north"))
-                                ? "var(--primary)"
-                                : "transparent",
-                            color:
-                              selectedVoiceURI === "ai-female-north" ||
-                              (!selectedVoiceURI.toLowerCase().includes("nam") &&
-                                !selectedVoiceURI.toLowerCase().includes("male") &&
-                                (selectedVoiceURI.toLowerCase().includes("nữ") ||
-                                  selectedVoiceURI.toLowerCase().includes("female") ||
-                                  selectedVoiceURI === "ai-female-north"))
-                                ? "#fff"
-                                : "inherit",
-                          }}
-                          onClick={() => handleVoiceChange("ai-female-north")}
-                        >
-                          🌸 Nữ êm dịu
-                        </button>
-                        <button
-                          type="button"
-                          style={{
-                            flex: 1,
-                            padding: "6px 10px",
-                            fontSize: "12px",
-                            fontWeight: 600,
-                            borderRadius: "6px",
-                            border: "1px solid currentColor",
-                            cursor: "pointer",
-                            background:
-                              selectedVoiceURI === "ai-female-sample"
-                                ? "var(--primary)"
-                                : "transparent",
-                            color:
-                              selectedVoiceURI === "ai-female-sample"
-                                ? "#fff"
-                                : "inherit",
-                          }}
-                          onClick={() => handleVoiceChange("ai-female-sample")}
-                        >
-                          🎙️ Bạn Nữ Đất Tổ
-                        </button>
+                        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "space-between", padding: "8px 12px", background: "rgba(16, 185, 129, 0.08)", border: "1px solid rgba(16, 185, 129, 0.3)", borderRadius: "6px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: 700, color: "var(--primary)", display: "flex", alignItems: "center", gap: "6px" }}>
+                            🎙️ Giọng bạn Nữ Đất Tổ (Mặc định toàn bộ lộ trình & nội dung)
+                          </span>
+                          <button
+                            type="button"
+                            style={{
+                              padding: "4px 8px",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              borderRadius: "4px",
+                              border: "1px solid var(--primary)",
+                              cursor: "pointer",
+                              background: "var(--primary)",
+                              color: "#fff",
+                            }}
+                            onClick={() => {
+                              stopAllAudio();
+                              playSpeechText(selected.audioScript || selected.description || selected.name, selected.audioScriptEn, undefined, selected.id);
+                            }}
+                          >
+                            ▶️ Nghe thử giọng
+                          </button>
+                        </div>
                       </div>
                     )}
                     <div className="audio-voice-control">

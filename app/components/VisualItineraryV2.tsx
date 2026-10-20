@@ -772,74 +772,32 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
           </div>
 
           <div className="v2-audio-settings-body">
-            {/* Quick Gender Selection Buttons for Vietnamese */}
+            {/* Single default voice indicator for Vietnamese */}
             {audioLang === "vi" && (
               <div className="v2-audio-control-item" style={{ gridColumn: "1 / -1", marginBottom: "4px" }}>
-                <label style={{ marginBottom: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>Chọn chất giọng AI:</span>
-                  <span style={{ fontSize: "12px", color: "var(--primary)", fontWeight: 700 }}>
-                    {selectedVoiceURI === "ai-male-north" || selectedVoiceURI.toLowerCase().includes("nam") || selectedVoiceURI.toLowerCase().includes("male")
-                      ? "👔 Đang chọn: Nam trầm ấm"
-                      : "🌸 Đang chọn: Nữ êm dịu"}
+                <div style={{
+                  padding: "10px 14px",
+                  borderRadius: "8px",
+                  fontWeight: 600,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: "8px",
+                  fontSize: "13px",
+                  background: "rgba(16, 185, 129, 0.08)",
+                  border: "1.5px solid rgba(16, 185, 129, 0.35)",
+                  color: "var(--primary)"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span style={{ fontSize: "18px" }}>🎙️</span>
+                    <div>
+                      <div style={{ fontWeight: 700 }}>Giọng bạn Nữ Đất Tổ</div>
+                      <div style={{ fontSize: "11px", opacity: 0.85, fontWeight: 500 }}>Thuyết minh mặc định toàn bộ lịch trình & nội dung</div>
+                    </div>
+                  </div>
+                  <span style={{ fontSize: "11px", background: "var(--primary)", color: "#fff", padding: "3px 8px", borderRadius: "12px", fontWeight: 700 }}>
+                    Mặc định
                   </span>
-                </label>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  <button
-                    type="button"
-                    className={`v2-rate-pill ${
-                      selectedVoiceURI === "ai-male-north" ||
-                      selectedVoiceURI.toLowerCase().includes("nam") ||
-                      selectedVoiceURI.toLowerCase().includes("male")
-                        ? "is-active"
-                        : ""
-                    }`}
-                    style={{
-                      padding: "9px 12px",
-                      borderRadius: "8px",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      border: "1.5px solid currentColor",
-                      transition: "all 0.2s ease"
-                    }}
-                    onClick={() => {
-                      setSelectedVoiceURI("ai-female-north");
-                    }}
-                  >
-                    <span>🌸</span> Giọng Nữ Hà Nội (Miền Bắc)
-                  </button>
-                  <button
-                    type="button"
-                    className={`v2-rate-pill ${
-                      selectedVoiceURI === "ai-male-north" ||
-                      (selectedVoiceURI.toLowerCase().includes("nam") ||
-                        selectedVoiceURI.toLowerCase().includes("male"))
-                        ? "is-active"
-                        : ""
-                    }`}
-                    style={{
-                      padding: "9px 12px",
-                      borderRadius: "8px",
-                      fontWeight: 600,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: "6px",
-                      fontSize: "13px",
-                      cursor: "pointer",
-                      border: "1.5px solid currentColor",
-                      transition: "all 0.2s ease"
-                    }}
-                    onClick={() => {
-                      setSelectedVoiceURI("ai-male-north");
-                    }}
-                  >
-                    <span>👔</span> Giọng Nam Hà Nội (Miền Bắc)
-                  </button>
                 </div>
               </div>
             )}
