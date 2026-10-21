@@ -396,7 +396,7 @@ export function createPlaceFromDistrict(
       phone: "0988 234 567",
       rating: 4.8,
       reviewCount: 120 + i * 25,
-      image: "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=82",
+      image: "/images/food/ca-lang-song-da.jpg",
       priceRange: "80.000đ – 250.000đ",
     };
   });
@@ -423,8 +423,8 @@ export function createPlaceFromDistrict(
       rating: 4.8,
       reviewCount: 160,
       image: stayName.toLowerCase().includes("resort")
-        ? "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=82"
-        : "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=82",
+        ? "/images/places/khoang-nong-thanh-thuy.jpg"
+        : "/images/places/thanh-thuy.jpg",
       priceRange: "350.000đ – 950.000đ/đêm",
     },
   ];

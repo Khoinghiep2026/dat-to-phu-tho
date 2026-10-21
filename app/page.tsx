@@ -24,6 +24,7 @@ import { tourTemplates, type TourTemplate } from "@/data/itineraryTemplates";
 import { buildItinerary, getOfficialDocxItinerary, getOfficialLongCocXuanSonItinerary, DISTRICT_TRAVEL_GUIDES, type GeneratedItinerary } from "@/lib/guidePlanner";
 import { getAllDistrictPlaces, getDistrictTravelGuide } from "@/lib/districtPlaceGenerator";
 import { TOUR_AUDIO_GUIDES } from "@/data/tourAudioGuides";
+import { PLACE_TRANSLATIONS_ZH } from "@/data/placeTranslationsZh";
 import VisualItineraryV2 from "./components/VisualItineraryV2";
 import AiChatbotWidget from "./components/AiChatbotWidget";
 
@@ -266,9 +267,9 @@ export const UI_TEXT = {
     viewAllBtn: "Xem tất cả →",
     selectProvinceLabel: "CHỌN KHU VỰC:",
     provAll: "Tất cả khu vực",
-    provPhuTho: "Khu vực Phú Thọ cũ",
-    provVinhPhuc: "Khu vực Vĩnh Phúc cũ",
-    provHoaBinh: "Khu vực Hòa Bình cũ",
+    provPhuTho: "Khu vực Phú Thọ",
+    provVinhPhuc: "Khu vực Vĩnh Phúc",
+    provHoaBinh: "Khu vực Hòa Bình",
     seasonLabel: "ĐI THEO MÙA",
     seasonAll: "Tất cả",
     seasonInSeason: "Đang hợp mùa",
@@ -663,6 +664,7 @@ export const UI_TEXT = {
     detailTasteLabel: "Hương vị:",
     detailOpenHours: "Giờ mở cửa:",
     detailCallBookTable: "{t.detailCallBookTable}",
+    detailBookRoom: "Đặt phòng lưu trú",
     detailBookRoomFrom: "Đặt phòng · từ",
     detailPerNightUnit: "/đêm →",
     nearLocationUnsupported: "Thiết bị không hỗ trợ định vị",
@@ -1124,6 +1126,7 @@ export const UI_TEXT = {
     detailTasteLabel: "Taste & Flavor:",
     detailOpenHours: "Opening Hours:",
     detailCallBookTable: "Call to reserve table / preorder →",
+    detailBookRoom: "Book Accommodation",
     detailBookRoomFrom: "Book Room · from",
     detailPerNightUnit: "/night →",
     nearLocationUnsupported: "Device does not support geolocation",
@@ -1499,6 +1502,7 @@ export const UI_TEXT = {
     detailTasteLabel: "风味特色：",
     detailOpenHours: "营业时间：",
     detailCallBookTable: "电话订位 / 提前点餐 →",
+    detailBookRoom: "预订住宿",
     detailBookRoomFrom: "预订客房 · 起价",
     detailPerNightUnit: "/晚 →",
     nearLocationUnsupported: "设备不支持地理定位",
@@ -1874,6 +1878,7 @@ export const UI_TEXT = {
     detailTasteLabel: "맛과 풍미:",
     detailOpenHours: "영업 시간:",
     detailCallBookTable: "전화 예약 / 사전 주문하기 →",
+    detailBookRoom: "숙소 예약",
     detailBookRoomFrom: "객실 예약 · 최저",
     detailPerNightUnit: "/박 →",
     nearLocationUnsupported: "기기에서 위치 서비스를 지원하지 않습니다",
@@ -2249,6 +2254,7 @@ export const UI_TEXT = {
     detailTasteLabel: "味・特徴：",
     detailOpenHours: "営業時間：",
     detailCallBookTable: "席の予約・事前注文はこちら →",
+    detailBookRoom: "宿泊予約",
     detailBookRoomFrom: "宿泊予約 · 1泊",
     detailPerNightUnit: "/泊 →",
     nearLocationUnsupported: "端末が位置情報に対応していません",
@@ -3645,13 +3651,50 @@ export default function Home() {
   // Cart & Checkout & Google Sheets Orders
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
-  const [cartDrawerTab, setCartDrawerTab] = useState<"cart" | "orders">("cart");
+  const [cartDrawerTab, setCartDrawerTab] = useState<"cart" | "orders" | "stays">("cart");
+  const [selectedCartLines, setSelectedCartLines] = useState<Set<string>>(new Set());
+  const [sellerQty, setSellerQty] = useState<Record<string, number>>({});
+  const [bookedRoomsList, setBookedRoomsList] = useState<any[]>([]);
+  const [confirmedBooking, setConfirmedBooking] = useState<any | null>(null);
+  const [bookingRooms, setBookingRooms] = useState<number>(1);
   const [checkoutName, setCheckoutName] = useState("");
   const [checkoutPhone, setCheckoutPhone] = useState("");
   const [checkoutAddress, setCheckoutAddress] = useState("");
   const [checkoutNote, setCheckoutNote] = useState("");
   const [confirmedOrder, setConfirmedOrder] = useState<any | null>(null);
   const [ordersDashboardOpen, setOrdersDashboardOpen] = useState(false);
+
+  // Load booked room requests
+  const reloadBookedRooms = () => {
+    try {
+      const stored = JSON.parse(window.localStorage.getItem("datto-booking-requests") ?? "[]");
+      setBookedRoomsList(Array.isArray(stored) ? stored : []);
+    } catch {
+      setBookedRoomsList([]);
+    }
+  };
+
+  useEffect(() => {
+    reloadBookedRooms();
+  }, []);
+
+  // Sync selected cart lines: automatically check newly added items
+  useEffect(() => {
+    setSelectedCartLines((prev) => {
+      const next = new Set(prev);
+      cart.forEach((c) => {
+        const key = `${c.dishId}-${c.sellerId}`;
+        if (!prev.has(key)) {
+          next.add(key);
+        }
+      });
+      const currentKeys = new Set(cart.map((c) => `${c.dishId}-${c.sellerId}`));
+      Array.from(next).forEach((k) => {
+        if (!currentKeys.has(k)) next.delete(k);
+      });
+      return next;
+    });
+  }, [cart]);
   const [orderList, setOrderList] = useState<any[]>([]);
   const [orderStatusTab, setOrderStatusTab] = useState<string>("all");
   const [merchantTabFilter, setMerchantTabFilter] = useState<string>("all");
@@ -4531,7 +4574,11 @@ export default function Home() {
   }, [cart]);
 
   const cartQuantity = cartDetails.reduce((total, line) => total + line.quantity, 0);
-  const cartSubtotal = cartDetails.reduce((total, line) => total + line.seller.price * line.quantity, 0);
+  const selectedCartItems = useMemo(() => {
+    return cartDetails.filter((line) => selectedCartLines.has(`${line.dishId}-${line.sellerId}`));
+  }, [cartDetails, selectedCartLines]);
+  const selectedCartCount = selectedCartItems.reduce((total, line) => total + line.quantity, 0);
+  const cartSubtotal = selectedCartItems.reduce((total, line) => total + line.seller.price * line.quantity, 0);
 
   const clearCart = () => {
     setCart([]);
@@ -4732,7 +4779,15 @@ export default function Home() {
   ) => {
     stopAllAudio();
 
-    const textToSpeak = (audioLang !== "vi" ? (textEn || textVi) : textVi)?.trim();
+    let resolvedText = textVi;
+    if (audioLang === "zh") {
+      const cleanId = (placeId || "").replace(/^place-/, "");
+      const zhData = placeId ? (PLACE_TRANSLATIONS_ZH[placeId] || PLACE_TRANSLATIONS_ZH[cleanId]) : undefined;
+      resolvedText = zhData?.audioScript || zhData?.description || zhData?.name || textEn || textVi;
+    } else if (audioLang !== "vi") {
+      resolvedText = textEn || textVi;
+    }
+    const textToSpeak = resolvedText?.trim();
     if (!textToSpeak || typeof window === "undefined") return;
 
     lastPlayedAudioRef.current = { textVi, textEn, onStateChange, placeId };
@@ -5300,14 +5355,33 @@ export default function Home() {
     setSearchFocused(false);
   };
 
-  const addToCart = (dish: FoodDish, seller: FoodSeller) => {
+  const updateSellerQty = (sellerId: string, delta: number) => {
+    setSellerQty((prev) => {
+      const current = prev[sellerId] || 1;
+      const next = Math.max(1, Math.min(99, current + delta));
+      return { ...prev, [sellerId]: next };
+    });
+  };
+
+  const addToCart = (dish: FoodDish, seller: FoodSeller, qty: number = 1) => {
+    const addQty = Math.max(1, qty);
     const existing = cart.find((line) => line.dishId === dish.id && line.sellerId === seller.id);
     const next = existing
-      ? cart.map((line) => line === existing ? { ...line, quantity: line.quantity + 1 } : line)
-      : [...cart, { dishId: dish.id, sellerId: seller.id, quantity: 1 }];
+      ? cart.map((line) => line === existing ? { ...line, quantity: line.quantity + addQty } : line)
+      : [...cart, { dishId: dish.id, sellerId: seller.id, quantity: addQty }];
     setCart(next);
     window.localStorage.setItem("datto-cart", JSON.stringify(next));
-    showToast(`Đã thêm "${dish.name}" vào giỏ hàng`);
+    const key = `${dish.id}-${seller.id}`;
+    setSelectedCartLines((prev) => new Set([...prev, key]));
+    showToast(`Đã thêm ${addQty}x "${dish.name}" vào giỏ hàng`);
+  };
+
+  const buyNow = (dish: FoodDish, seller: FoodSeller, qty: number = 1) => {
+    addToCart(dish, seller, qty);
+    const key = `${dish.id}-${seller.id}`;
+    setSelectedCartLines((prev) => new Set([...prev, key]));
+    setCartDrawerTab("cart");
+    setCartOpen(true);
   };
 
   const goToFoodSection = () => {
@@ -5877,6 +5951,12 @@ export default function Home() {
       return;
     }
 
+    const itemsToCheckout = cartDetails.filter((c) => selectedCartLines.has(`${c.dishId}-${c.sellerId}`));
+    if (itemsToCheckout.length === 0) {
+      showToast("⚠️ Vui lòng tick chọn ít nhất 1 sản phẩm trong giỏ để đặt hàng!");
+      return;
+    }
+
     const selectedPayLabel = PAYMENT_METHODS.find((p) => p.id === paymentMethod)?.label || "VietQR";
 
     try {
@@ -5891,7 +5971,7 @@ export default function Home() {
         paymentMethod: selectedPayLabel,
         appliedVoucher: appliedVoucher ? `${appliedVoucher.code} (${appliedVoucher.title})` : undefined,
         discountAmount: voucherDiscount,
-        items: cartDetails.map((c) => ({
+        items: itemsToCheckout.map((c) => ({
           dishName: c.dish.name,
           sellerName: c.seller.name,
           sellerPhone: c.seller.phone,
@@ -5925,8 +6005,10 @@ export default function Home() {
         window.localStorage.setItem("datto-demo-orders", JSON.stringify(nextOrders));
         setOrderList(nextOrders);
         setConfirmedOrder({ ...data, order: fullOrder });
-        setCart([]);
-        window.localStorage.removeItem("datto-cart");
+        const remainingCart = cart.filter((c) => !selectedCartLines.has(`${c.dishId}-${c.sellerId}`));
+        setCart(remainingCart);
+        window.localStorage.setItem("datto-cart", JSON.stringify(remainingCart));
+        setSelectedCartLines(new Set());
         setCartOpen(false);
         setCheckoutName("");
         setCheckoutPhone("");
@@ -5951,7 +6033,7 @@ export default function Home() {
         paymentMethod: selectedPayLabel,
         appliedVoucher: appliedVoucher ? `${appliedVoucher.code} (${appliedVoucher.title})` : undefined,
         discountAmount: voucherDiscount,
-        items: cartDetails.map((c) => ({
+        items: itemsToCheckout.map((c) => ({
           dishName: c.dish.name,
           sellerName: c.seller.name,
           sellerPhone: c.seller.phone,
@@ -5977,8 +6059,10 @@ export default function Home() {
           zaloUrl: it.sellerPhone ? `https://zalo.me/${it.sellerPhone.replace(/\D/g, "")}` : undefined,
         })),
       });
-      setCart([]);
-      window.localStorage.removeItem("datto-cart");
+      const remainingCart = cart.filter((c) => !selectedCartLines.has(`${c.dishId}-${c.sellerId}`));
+      setCart(remainingCart);
+      window.localStorage.setItem("datto-cart", JSON.stringify(remainingCart));
+      setSelectedCartLines(new Set());
       setCartOpen(false);
       setCheckoutName("");
       setCheckoutPhone("");
@@ -6204,24 +6288,32 @@ export default function Home() {
       showToast("Ngày trả phòng cần sau ngày nhận phòng");
       return;
     }
-    const total = estimatedStayPrice(bookingOffer.stay) * bookingNights;
-    const stored = JSON.parse(window.localStorage.getItem("datto-booking-requests") ?? "[]") as unknown[];
+    const total = estimatedStayPrice(bookingOffer.stay) * bookingNights * bookingRooms;
+    const stored = JSON.parse(window.localStorage.getItem("datto-booking-requests") ?? "[]") as any[];
     const request = {
       id: `DP-${String(stored.length + 1).padStart(6, "0")}`,
       customerName: bookingName.trim(),
       stay: bookingOffer.stay.name,
+      stayAddress: bookingOffer.stay.address,
       place: bookingOffer.place.shortName,
       checkIn: bookingCheckIn,
       checkOut: bookingCheckOut,
+      nights: bookingNights,
+      rooms: bookingRooms,
       guests: bookingGuests,
       phone: bookingPhone,
       note: bookingNote.trim(),
       total,
-      createdAt: new Date().toISOString()
+      pricePerNight: estimatedStayPrice(bookingOffer.stay),
+      status: "Tiếp nhận - Chờ xác nhận",
+      createdAt: new Date().toLocaleString("vi-VN"),
     };
-    window.localStorage.setItem("datto-booking-requests", JSON.stringify([request, ...stored]));
+    const nextRequests = [request, ...stored];
+    window.localStorage.setItem("datto-booking-requests", JSON.stringify(nextRequests));
+    setBookedRoomsList(nextRequests);
     setBookingOffer(null);
-    showToast(`✦ Đã ghi nhận yêu cầu đặt phòng ${request.id} cho quý khách ${request.customerName}!`);
+    setConfirmedBooking(request);
+    showToast(`✦ Đã ghi nhận yêu cầu đặt ${request.rooms} phòng ${request.id} cho quý khách ${request.customerName}!`);
   };
 
   const handleReviewPhotos = async (event: ChangeEvent<HTMLInputElement>) => {
@@ -6275,7 +6367,7 @@ export default function Home() {
     const target = e.currentTarget;
     if (!target.dataset.fallback) {
       target.dataset.fallback = "true";
-      target.src = "https://images.unsplash.com/photo-1528127269322-539801943592?auto=format&fit=crop&w=800&q=80";
+      target.src = "/images/places/den-hung.png";
     }
   };
 
@@ -6289,9 +6381,10 @@ export default function Home() {
     <article className={`place-card ${compact ? "place-card--compact" : ""}`} key={place.id}>
       <button className="place-card__image-button" onClick={() => openPlace(place)} aria-label={`Xem ${currentLang !== "vi" && place.nameEn ? place.nameEn : place.name}`}>
         <img className="place-card__image" src={place.image} alt={currentLang !== "vi" && place.nameEn ? place.nameEn : place.name} loading="lazy" onError={handleImageError} />
-        <span className="place-card__category">{getCategoryLabel(place.category, t)}</span>
-        <span className="place-card__region-badge">{getRegionLabel(place.region, t)}</span>
-        {distanceFromUser(place) && <span className="place-card__distance">⌖ {distanceFromUser(place)}</span>}
+        <div className="place-card__badges-strip">
+          <span className="place-card__category">{getCategoryLabel(place.category, t)}</span>
+          {distanceFromUser(place) && <span className="place-card__distance">⌖ {distanceFromUser(place)}</span>}
+        </div>
       </button>
       <button
         className={`heart-button ${favorites.includes(place.id) ? "is-saved" : ""}`}
@@ -6306,12 +6399,25 @@ export default function Home() {
       <div className="place-card__body" onClick={() => openPlace(place)}>
         <span className="eyebrow">{currentLang !== "vi" && place.locationEn ? place.locationEn : place.location}</span>
         <strong>{currentLang !== "vi" && place.nameEn ? place.nameEn : place.shortName}</strong>
-        <span className="place-card__meta"><b>★ {place.rating}</b> ({place.reviews.toLocaleString("vi-VN")}) · {place.bestTime}</span>
+        <span className="place-card__meta"><b>★ {place.rating}</b> ({place.reviews.toLocaleString(currentLang === "vi" ? "vi-VN" : "en-US")}) · {place.bestTime}</span>
         {!compact && <span className="place-card__highlight">✦ {currentLang !== "vi" && place.highlightsEn ? place.highlightsEn[0] : place.highlights[0]}</span>}
         {!compact && (
           <div className="place-card__footer">
             <div className="place-card__actions-row">
               <span className="place-card__detail-link">{t.detailsBtn}</span>
+              {place.stays && place.stays.length > 0 && (
+                <button
+                  type="button"
+                  className="place-card__book-stay-btn"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openBooking(place, place.stays[0]);
+                  }}
+                  title={`Đặt phòng lưu trú tại ${place.shortName}`}
+                >
+                  🏨 {t.detailBookRoom || "Đặt phòng"}
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -6339,20 +6445,29 @@ export default function Home() {
     } else {
       setSelectedVoiceURI("ai-en-us");
     }
-    setGeneratedItinerary((prev) =>
-      buildItinerary({
-        anchorPlaceId: selectedPlaceIds[0] || targetPlaceId,
-        selectedPlaceIds,
-        district: tripDistrict !== "Tất cả" ? tripDistrict : undefined,
-        region: tripRegion !== "Tất cả" ? tripRegion : undefined,
-        durationDays: days,
-        transport,
-        budget,
-        style: interest,
-        travelers,
-        lang: code,
-      })
-    );
+
+    const userLoc = position ? { lat: position.lat, lng: position.lng, label: "Vị trí của bạn" } : undefined;
+    if (generatedItinerary?.id === "tour-2n1d") {
+      setGeneratedItinerary(getOfficialDocxItinerary(code, userLoc));
+    } else if (generatedItinerary?.id === "tour-longcoc-xuanson") {
+      setGeneratedItinerary(getOfficialLongCocXuanSonItinerary(code, userLoc));
+    } else {
+      setGeneratedItinerary((prev) =>
+        buildItinerary({
+          anchorPlaceId: selectedPlaceIds[0] || targetPlaceId,
+          selectedPlaceIds,
+          district: tripDistrict !== "Tất cả" ? tripDistrict : undefined,
+          region: tripRegion !== "Tất cả" ? tripRegion : undefined,
+          durationDays: days,
+          transport,
+          budget,
+          style: interest,
+          travelers,
+          lang: code,
+        })
+      );
+    }
+
     try {
       localStorage.setItem("datto_lang", code);
     } catch {}
@@ -6394,8 +6509,45 @@ export default function Home() {
             <p><strong>{t.phoneNumberLabel}:</strong> {seller.phone || t.contactAtShop}</p>
             <p><strong>{t.pickupNoteLabel}</strong> {seller.pickupNote}</p>
             <div className="seller-card__buy">
-              <span><b>{formatMoney(seller.price, currentCurrency)}</b><small>/{seller.unit}</small></span>
-              <button type="button" onClick={() => addToCart(dish, seller)}>{t.addToCartBtn}</button>
+              <div className="seller-card__price-wrap">
+                <b>{formatMoney(seller.price, currentCurrency)}</b>
+                <small>/{seller.unit}</small>
+              </div>
+              <div className="seller-card__order-controls">
+                <div className="seller-qty-stepper">
+                  <button
+                    type="button"
+                    onClick={() => updateSellerQty(seller.id, -1)}
+                    aria-label="Giảm số lượng"
+                  >
+                    −
+                  </button>
+                  <span className="seller-qty-val">{sellerQty[seller.id] || 1}</span>
+                  <button
+                    type="button"
+                    onClick={() => updateSellerQty(seller.id, 1)}
+                    aria-label="Tăng số lượng"
+                  >
+                    ＋
+                  </button>
+                </div>
+                <button
+                  type="button"
+                  className="seller-add-btn"
+                  onClick={() => addToCart(dish, seller, sellerQty[seller.id] || 1)}
+                  title="Thêm món này vào giỏ hàng"
+                >
+                  {t.addToCartBtn}
+                </button>
+                <button
+                  type="button"
+                  className="seller-buynow-btn"
+                  onClick={() => buyNow(dish, seller, sellerQty[seller.id] || 1)}
+                  title="Mua ngay và chuyển đến giỏ hàng"
+                >
+                  ⚡ Mua ngay
+                </button>
+              </div>
             </div>
             <div className="seller-card__links">
               {seller.phone && <a href={`tel:${seller.phone}`}>{t.callSeller}</a>}
@@ -6486,6 +6638,24 @@ export default function Home() {
             </svg>
             {(favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
               <span className="topbar__heart-badge">{favorites.length + savedDishes.length + savedItineraryList.length}</span>
+            )}
+          </button>
+
+          {/* Stay / Room Booking Button */}
+          <button
+            type="button"
+            className="topbar__stay-btn"
+            onClick={() => {
+              setCartDrawerTab("stays");
+              setCartOpen(true);
+            }}
+            aria-label="Đặt phòng lưu trú"
+            title="Đặt phòng lưu trú / Khách sạn & Homestay Phú Thọ"
+          >
+            <span style={{ fontSize: "16px" }}>🏨</span>
+            <span className="topbar__stay-btn-text">{t.detailBookRoom || "Đặt phòng"}</span>
+            {bookedRoomsList.length > 0 && (
+              <span className="topbar__stay-badge">{bookedRoomsList.length}</span>
             )}
           </button>
 
@@ -6898,7 +7068,16 @@ export default function Home() {
                 <div className="travel-challenge-visual">
                   {/* Destination Card */}
                   <div className="challenge-card-destination">
-                    <div className="challenge-card-dest-img" style={{ backgroundImage: "url('/images/places/den-hung.png')" }} />
+                    <div className="challenge-card-dest-img">
+                      <img
+                        src="/images/places/den-hung.jpg"
+                        alt="Check-in Đền Hùng"
+                        className="challenge-card-dest-img-tag"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = "/images/places/den-hung.png";
+                        }}
+                      />
+                    </div>
                     <div className="challenge-card-dest-info">
                       <span className="challenge-card-dest-badge">🏛️ Cội nguồn</span>
                       <strong className="challenge-card-dest-title">Check-in Đền Hùng</strong>
@@ -8009,6 +8188,21 @@ export default function Home() {
                 isBuilderCollapsed={isBuilderCollapsed}
                 toggleBuilderCollapse={() => setIsBuilderCollapsed(!isBuilderCollapsed)}
                 onLanguageChange={changeLanguage}
+                onOpenBooking={(stayItem) => {
+                  const matchedPlace = places.find((p) => p.stays.some((s) => s.name === stayItem.name)) || places[0];
+                  const existingStay = matchedPlace.stays.find((s) => s.name === stayItem.name);
+                  const stayObj: NearbyItem = existingStay || {
+                    name: stayItem.name,
+                    address: stayItem.address || matchedPlace.location,
+                    type: stayItem.type || "Lưu trú",
+                    note: (stayItem as any).note || "Cơ sở lưu trú uy tín tại Phú Thọ",
+                    distance: "0 km",
+                    travelTime: "5 phút",
+                    hours: "24/24",
+                    image: matchedPlace.image,
+                  };
+                  openBooking(matchedPlace, stayObj);
+                }}
               />
 
               {/* QUICK TOUR TEMPLATES */}
@@ -8738,7 +8932,7 @@ export default function Home() {
       <nav className="bottom-nav" aria-label={t.bottomNavAria}>
         {navigation.map((item) => (
           <button key={item.id} className={activeTab === item.id ? "is-active" : ""} onClick={() => setActiveTab(item.id)}>
-            <span>{item.icon}</span>{item.label}
+            <span>{item.icon}</span>{t[item.id] || item.label}
             {item.id === "saved" && (favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
               <b className="bottom-nav-dot" />
             )}
@@ -8799,6 +8993,23 @@ export default function Home() {
                     <a className="button button--dark" target="_blank" rel="noreferrer" href={`https://www.google.com/maps/dir/?api=1&destination=${selected.lat},${selected.lng}`}>
                       {t.modalOpenDirections}
                     </a>
+                    {selected.stays && selected.stays.length > 0 && (
+                      <button
+                        type="button"
+                        className="button button--primary"
+                        style={{
+                          background: "var(--brand-primary, #0f5132)",
+                          color: "#ffffff",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          fontWeight: 700,
+                        }}
+                        onClick={() => openBooking(selected, selected.stays[0])}
+                      >
+                        🏨 {t.detailBookRoom || "Đặt phòng lưu trú"}
+                      </button>
+                    )}
                     <button className="button button--outline" onClick={() => togglePlaceAudio(selected)}>
                       {speechPlaceId === selected.id && audioState === "playing"
                         ? `⏸ ${t.audioPause}`
@@ -9079,8 +9290,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Top 2 Tabs: Giỏ hàng vs Đơn mua */}
-            <div className="auth-tab-switch" style={{ margin: "14px 0 18px" }}>
+            {/* Top 3 Tabs: Giỏ hàng vs Đơn mua vs Phòng đã đặt */}
+            <div className="auth-tab-switch" style={{ margin: "14px 0 18px", display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "6px" }}>
               <button
                 type="button"
                 className={`auth-tab-btn ${cartDrawerTab === "cart" ? "is-active" : ""}`}
@@ -9094,6 +9305,13 @@ export default function Home() {
                 onClick={() => setCartDrawerTab("orders")}
               >
                 📦 {t.myOrders} ({userOrderList.length})
+              </button>
+              <button
+                type="button"
+                className={`auth-tab-btn ${cartDrawerTab === "stays" ? "is-active" : ""}`}
+                onClick={() => setCartDrawerTab("stays")}
+              >
+                🏨 Phòng đã đặt ({bookedRoomsList.length})
               </button>
             </div>
 
@@ -9118,22 +9336,91 @@ export default function Home() {
                   </div>
                 ) : (
                   <>
+                    {/* SELECT ALL & BULK DELETE BAR */}
+                    <div className="cart-select-all-bar">
+                      <label className="cart-checkbox-label">
+                        <input
+                          type="checkbox"
+                          className="cart-checkbox-input"
+                          checked={cartDetails.length > 0 && selectedCartLines.size === cartDetails.length}
+                          onChange={(e) => {
+                            if (e.target.checked) {
+                              setSelectedCartLines(new Set(cartDetails.map((l) => `${l.dishId}-${l.sellerId}`)));
+                            } else {
+                              setSelectedCartLines(new Set());
+                            }
+                          }}
+                        />
+                        <span>Chọn tất cả ({cartDetails.length} món)</span>
+                      </label>
+                      {selectedCartLines.size > 0 && (
+                        <button
+                          type="button"
+                          className="cart-delete-selected-btn"
+                          onClick={() => {
+                            const next = cart.filter((l) => !selectedCartLines.has(`${l.dishId}-${l.sellerId}`));
+                            setCart(next);
+                            window.localStorage.setItem("datto-cart", JSON.stringify(next));
+                            setSelectedCartLines(new Set());
+                            showToast("Đã xóa các món đã chọn khỏi giỏ hàng");
+                          }}
+                        >
+                          🗑️ Xóa ({selectedCartLines.size})
+                        </button>
+                      )}
+                    </div>
+
                     <div className="cart-lines">
-                      {cartDetails.map((line) => (
-                        <article key={`${line.dishId}-${line.sellerId}`}>
-                          <img src={line.dish.image} alt="" onError={handleImageError} />
-                          <div>
-                            <b>{line.dish.name}</b>
-                            <small>{line.seller.name}</small>
-                            <span>{formatPrice(line.seller.price)}/{line.seller.unit}</span>
-                          </div>
-                          <div className="quantity-picker">
-                            <button type="button" onClick={() => changeCartQuantity(line.dishId, line.sellerId, -1)}>−</button>
-                            <b>{line.quantity}</b>
-                            <button type="button" onClick={() => changeCartQuantity(line.dishId, line.sellerId, 1)}>＋</button>
-                          </div>
-                        </article>
-                      ))}
+                      {cartDetails.map((line) => {
+                        const lineKey = `${line.dishId}-${line.sellerId}`;
+                        const isSelected = selectedCartLines.has(lineKey);
+                        return (
+                          <article key={lineKey} className={`cart-line-card ${isSelected ? "is-selected" : ""}`}>
+                            <input
+                              type="checkbox"
+                              className="cart-checkbox-input"
+                              checked={isSelected}
+                              onChange={(e) => {
+                                setSelectedCartLines((prev) => {
+                                  const next = new Set(prev);
+                                  if (e.target.checked) next.add(lineKey);
+                                  else next.delete(lineKey);
+                                  return next;
+                                });
+                              }}
+                            />
+                            <img src={line.dish.image} alt={line.dish.name} onError={handleImageError} />
+                            <div className="cart-line-info">
+                              <b>{line.dish.name}</b>
+                              <small>{line.seller.name}</small>
+                              <span>{formatPrice(line.seller.price)}/{line.seller.unit}</span>
+                            </div>
+                            <div className="quantity-picker">
+                              <button type="button" onClick={() => changeCartQuantity(line.dishId, line.sellerId, -1)}>−</button>
+                              <b>{line.quantity}</b>
+                              <button type="button" onClick={() => changeCartQuantity(line.dishId, line.sellerId, 1)}>＋</button>
+                            </div>
+                            <button
+                              type="button"
+                              className="cart-line-trash-btn"
+                              title="Xóa món này khỏi giỏ"
+                              onClick={() => {
+                                const next = cart.filter((l) => !(l.dishId === line.dishId && l.sellerId === line.sellerId));
+                                setCart(next);
+                                window.localStorage.setItem("datto-cart", JSON.stringify(next));
+                                setSelectedCartLines((prev) => {
+                                  const nextSet = new Set(prev);
+                                  nextSet.delete(lineKey);
+                                  return nextSet;
+                                });
+                                showToast(`Đã bỏ "${line.dish.name}" khỏi giỏ hàng`);
+                              }}
+                            >
+                              🗑️
+                            </button>
+                          </article>
+                        );
+                      })}
                     </div>
 
                     {/* VOUCHER / PROMOTION BLOCK */}
@@ -9238,7 +9525,7 @@ export default function Home() {
 
                     {/* COMMERCE TOTAL WITH CURRENCY CONVERSION */}
                     <div className="commerce-total">
-                      <span>{t.subtotalLabel} ({cartQuantity} {t.profileItems})</span>
+                      <span>{t.subtotalLabel} ({selectedCartCount} / {cartQuantity} {t.profileItems} đã chọn)</span>
                       <b>{formatPrice(cartSubtotal)}</b>
                       {voucherDiscount > 0 && (
                         <>
@@ -9529,8 +9816,18 @@ export default function Home() {
                     </div>
 
                     {authUser ? (
-                      <button className="button button--dark button--full" type="submit">
-                        {t.confirmOrderBtn} ({formatPrice(finalCartTotal)}) →
+                      <button
+                        className="button button--dark button--full"
+                        type="submit"
+                        disabled={selectedCartCount === 0}
+                        style={{
+                          opacity: selectedCartCount === 0 ? 0.6 : 1,
+                          cursor: selectedCartCount === 0 ? "not-allowed" : "pointer",
+                        }}
+                      >
+                        {selectedCartCount > 0
+                          ? `${t.confirmOrderBtn} (${selectedCartCount} món · ${formatPrice(finalCartTotal)}) →`
+                          : "⚠️ Vui lòng tick chọn món để đặt hàng"}
                       </button>
                     ) : (
                       <button
@@ -9723,6 +10020,176 @@ export default function Home() {
                 )}
               </div>
             )}
+
+            {/* TAB 3: BOOKED ROOMS / PHÒNG NGHỈ ĐÃ ĐẶT */}
+            {cartDrawerTab === "stays" && (
+              <div className="booked-rooms-panel">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "14px", paddingBottom: "10px", borderBottom: "1px solid var(--line)" }}>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: "17px", color: "var(--brand-primary, #0f5132)", fontWeight: 800 }}>🏨 Phòng nghỉ đã đặt</h3>
+                    <small style={{ color: "#64748b" }}>Quản lý các yêu cầu đặt phòng lưu trú tại Phú Thọ</small>
+                  </div>
+                  <button
+                    type="button"
+                    className="button button--ghost"
+                    style={{ fontSize: "11px", padding: "4px 8px" }}
+                    onClick={reloadBookedRooms}
+                  >
+                    🔄 Làm mới
+                  </button>
+                </div>
+
+                {bookedRoomsList.length === 0 ? (
+                  <div className="cart-empty-state">
+                    <span>🏨</span>
+                    <h3>Chưa có phòng nào được đặt</h3>
+                    <p>Hãy khám phá các khách sạn, homestay sinh thái tại Đền Hùng, Thanh Thủy, Long Cốc và gửi yêu cầu đặt phòng ngay!</p>
+                    <button
+                      type="button"
+                      className="button button--dark"
+                      style={{ marginTop: "12px" }}
+                      onClick={() => {
+                        setCartOpen(false);
+                        setActiveTab("near");
+                      }}
+                    >
+                      🔍 Khám phá cơ sở lưu trú
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+                    {bookedRoomsList.map((req, rIdx) => (
+                      <div
+                        key={req.id || rIdx}
+                        style={{
+                          background: "#ffffff",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "10px",
+                          padding: "14px",
+                          boxShadow: "0 2px 8px rgba(0,0,0,0.04)",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "8px", marginBottom: "8px" }}>
+                          <div>
+                            <span style={{ fontSize: "11px", fontWeight: 800, background: "rgba(15,81,50,0.1)", color: "#0f5132", padding: "2px 8px", borderRadius: "4px" }}>
+                              {req.id}
+                            </span>
+                            <h4 style={{ margin: "4px 0 0", fontSize: "15px", fontWeight: 700 }}>{req.stay}</h4>
+                          </div>
+                          <span style={{ fontSize: "11px", fontWeight: 700, background: "#ecfdf5", color: "#059669", padding: "3px 8px", borderRadius: "999px", border: "1px solid #a7f3d0" }}>
+                            ✓ Đã ghi nhận
+                          </span>
+                        </div>
+                        <p style={{ margin: "0 0 8px", fontSize: "12px", color: "#64748b" }}>
+                          📍 {req.stayAddress || req.place}
+                        </p>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "6px", fontSize: "12px", background: "#f8fafc", padding: "10px", borderRadius: "8px" }}>
+                          <div>📅 <b>Nhận:</b> {req.checkIn}</div>
+                          <div>📅 <b>Trả:</b> {req.checkOut} ({req.nights || 1} đêm)</div>
+                          <div>🚪 <b>Số phòng:</b> {req.rooms || 1} phòng</div>
+                          <div>👥 <b>Số khách:</b> {req.guests || 2} khách</div>
+                          <div>👤 <b>Người đặt:</b> {req.customerName}</div>
+                          <div>📞 <b>SĐT:</b> {req.phone}</div>
+                        </div>
+                        {req.note && (
+                          <div style={{ marginTop: "6px", fontSize: "11.5px", color: "#475569" }}>
+                            💬 <i>Yêu cầu: {req.note}</i>
+                          </div>
+                        )}
+                        <div style={{ marginTop: "10px", paddingTop: "8px", borderTop: "1px dashed #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                          <div>
+                            <small style={{ color: "#64748b" }}>Tổng chi phí:</small>
+                            <b style={{ display: "block", color: "var(--red, #b91c1c)", fontSize: "16px" }}>{formatMoney(req.total)}</b>
+                          </div>
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            {req.phone && (
+                              <a
+                                href={`tel:${req.phone}`}
+                                className="button button--outline"
+                                style={{ fontSize: "11px", padding: "5px 10px" }}
+                              >
+                                📞 Gọi xác nhận
+                              </a>
+                            )}
+                            <button
+                              type="button"
+                              style={{ background: "none", border: 0, color: "#dc2626", fontSize: "12px", cursor: "pointer", fontWeight: 600 }}
+                              onClick={() => {
+                                if (confirm(`Bạn có chắc muốn hủy yêu cầu đặt phòng ${req.id}?`)) {
+                                  const next = bookedRoomsList.filter((item) => item.id !== req.id);
+                                  window.localStorage.setItem("datto-booking-requests", JSON.stringify(next));
+                                  setBookedRoomsList(next);
+                                  showToast(`Đã hủy yêu cầu ${req.id}`);
+                                }
+                              }}
+                            >
+                              🗑️ Hủy
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* QUICK STAY BOOKING LIST */}
+                <div style={{ marginTop: "24px", paddingTop: "18px", borderTop: "2px dashed #cbd5e1" }}>
+                  <div style={{ marginBottom: "12px" }}>
+                    <h4 style={{ margin: 0, fontSize: "16px", color: "var(--brand-primary, #0f5132)", fontWeight: 800 }}>🏨 Đặt phòng khách sạn & homestay</h4>
+                    <small style={{ color: "#64748b" }}>Chọn khách sạn, resort hoặc homestay để gửi yêu cầu đặt phòng trực tiếp</small>
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                    {places
+                      .flatMap((p) => p.stays.map((s) => ({ place: p, stay: s, price: estimatedStayPrice(s) })))
+                      .slice(0, 10)
+                      .map(({ place: pItem, stay: sItem, price }, sIdx) => (
+                        <div
+                          key={`${pItem.id}-${sItem.name}-${sIdx}`}
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: "10px",
+                            background: "#ffffff",
+                            border: "1px solid #e2e8f0",
+                            borderRadius: "8px",
+                            padding: "10px 12px",
+                            boxShadow: "0 1px 4px rgba(0,0,0,0.03)",
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px", flexWrap: "wrap" }}>
+                              <span style={{ fontSize: "10px", fontWeight: 800, background: "#f0fdf4", color: "#166534", padding: "1px 6px", borderRadius: "4px" }}>
+                                {sItem.type || "Lưu trú"}
+                              </span>
+                              <span style={{ fontSize: "11px", color: "#64748b" }}>{pItem.shortName}</span>
+                            </div>
+                            <b style={{ display: "block", fontSize: "13.5px", marginTop: "2px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              {sItem.name}
+                            </b>
+                            <small style={{ display: "block", color: "#64748b", fontSize: "11px", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                              📍 {sItem.address}
+                            </small>
+                          </div>
+                          <div style={{ textAlign: "right", flexShrink: 0 }}>
+                            <div style={{ fontSize: "12px", fontWeight: 800, color: "var(--red, #b91c1c)", marginBottom: "4px" }}>
+                              {formatMoney(price)}<small style={{ fontSize: "10px", color: "#64748b", fontWeight: 400 }}>/đêm</small>
+                            </div>
+                            <button
+                              type="button"
+                              className="button button--dark"
+                              style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "6px", fontWeight: 700 }}
+                              onClick={() => openBooking(pItem, sItem)}
+                            >
+                              🏨 Đặt phòng
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -9787,9 +10254,16 @@ export default function Home() {
               </label>
 
               <label>
+                Số lượng phòng <small style={{ color: "red" }}>*</small>
+                <select value={bookingRooms} onChange={(event) => setBookingRooms(Number(event.target.value))}>
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => <option key={count} value={count}>{count} phòng</option>)}
+                </select>
+              </label>
+
+              <label>
                 Số lượng khách
                 <select value={bookingGuests} onChange={(event) => setBookingGuests(Number(event.target.value))}>
-                  {[1, 2, 3, 4, 5, 6, 8, 10].map((count) => <option key={count} value={count}>{count} khách</option>)}
+                  {[1, 2, 3, 4, 5, 6, 8, 10, 15, 20].map((count) => <option key={count} value={count}>{count} khách</option>)}
                 </select>
               </label>
 
@@ -9799,20 +10273,76 @@ export default function Home() {
                   type="text"
                   value={bookingNote}
                   onChange={(event) => setBookingNote(event.target.value)}
-                  placeholder="Yêu cầu giường đôi, view đẹp..."
+                  placeholder="Yêu cầu giường đôi, view đẹp, ăn sáng..."
                 />
               </label>
             </div>
 
             <div className="booking-summary">
-              <span>{bookingNights} đêm · {bookingGuests} khách</span>
-              <b>{t.estimatedTotalStay}: {formatMoney(estimatedStayPrice(bookingOffer.stay) * bookingNights)}</b>
+              <span>{bookingRooms} phòng · {bookingNights} đêm · {bookingGuests} khách</span>
+              <b>{t.estimatedTotalStay}: {formatMoney(estimatedStayPrice(bookingOffer.stay) * bookingNights * bookingRooms)}</b>
             </div>
 
             <button className="button button--dark button--full" type="submit">
               {t.sendBookingRequestBtn}
             </button>
           </form>
+        </div>
+      )}
+
+      {/* ROOM BOOKING SUCCESS MODAL */}
+      {confirmedBooking && (
+        <div className="commerce-overlay modal-centered" role="presentation" onMouseDown={(e) => { if (e.target === e.currentTarget) setConfirmedBooking(null); }}>
+          <div className="order-success-modal" role="dialog" aria-labelledby="booking-success-title" style={{ maxWidth: "500px" }}>
+            <div className="order-success-header">
+              <span className="order-success-icon">🏨</span>
+              <div>
+                <span className="heritage-gold-tag">ĐẶT PHÒNG THÀNH CÔNG</span>
+                <h3 id="booking-success-title" style={{ margin: "4px 0 2px", fontSize: "18px" }}>Mã yêu cầu: {confirmedBooking.id}</h3>
+                <p style={{ margin: 0, fontSize: "12px", color: "#64748b" }}>Cơ sở lưu trú đã tiếp nhận và sẽ liên hệ xác nhận trong 15 phút.</p>
+              </div>
+              <button type="button" className="booking-dialog__close" onClick={() => setConfirmedBooking(null)} aria-label="Đóng">×</button>
+            </div>
+            <div className="order-success-body" style={{ padding: "16px 20px" }}>
+              <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "14px", marginBottom: "14px" }}>
+                <h4 style={{ margin: "0 0 6px", fontSize: "16px", color: "var(--brand-primary, #0f5132)" }}>{confirmedBooking.stay}</h4>
+                <p style={{ margin: "0 0 10px", fontSize: "12px", color: "#64748b" }}>📍 {confirmedBooking.stayAddress || confirmedBooking.place}</p>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", fontSize: "12.5px" }}>
+                  <div>📅 <b>Nhận phòng:</b> {confirmedBooking.checkIn}</div>
+                  <div>📅 <b>Trả phòng:</b> {confirmedBooking.checkOut}</div>
+                  <div>🚪 <b>Số phòng:</b> {confirmedBooking.rooms} phòng</div>
+                  <div>👥 <b>Số khách:</b> {confirmedBooking.guests} khách</div>
+                  <div>👤 <b>Người đặt:</b> {confirmedBooking.customerName}</div>
+                  <div>📞 <b>Điện thoại:</b> {confirmedBooking.phone}</div>
+                </div>
+                <div style={{ marginTop: "12px", paddingTop: "10px", borderTop: "1px dashed #cbd5e1", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ fontSize: "13px", fontWeight: 600 }}>Tạm tính tổng tiền:</span>
+                  <b style={{ fontSize: "18px", color: "var(--red, #b91c1c)" }}>{formatMoney(confirmedBooking.total)}</b>
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button
+                  type="button"
+                  className="button button--dark"
+                  style={{ flex: 1 }}
+                  onClick={() => {
+                    setConfirmedBooking(null);
+                    setCartDrawerTab("stays");
+                    setCartOpen(true);
+                  }}
+                >
+                  🏨 Xem danh sách phòng đã đặt
+                </button>
+                <button
+                  type="button"
+                  className="button button--ghost"
+                  onClick={() => setConfirmedBooking(null)}
+                >
+                  Đóng
+                </button>
+              </div>
+            </div>
+          </div>
         </div>
       )}
 

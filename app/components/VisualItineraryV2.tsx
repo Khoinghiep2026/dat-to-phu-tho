@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import type { GeneratedItinerary, ItinerarySlot, ItineraryDay } from "@/lib/guidePlanner";
 import type { Place } from "@/data/travel";
 import type { LanguageCode } from "@/app/page";
+import { PLACE_HISTORY_STORIES, type HistoryStory } from "@/data/placeHistoryStories";
 
 export type VisualItineraryV2Props = {
   generatedItinerary: GeneratedItinerary;
@@ -44,6 +45,7 @@ export type VisualItineraryV2Props = {
   isBuilderCollapsed?: boolean;
   toggleBuilderCollapse?: () => void;
   onLanguageChange?: (lang: LanguageCode) => void;
+  onOpenBooking?: (stay: { name: string; address?: string; type?: string; price?: number; note?: string; place?: Place }) => void;
 };
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number) {
@@ -348,15 +350,27 @@ function formatDayBadge(dayNum: number, lang: LanguageCode): string {
 
 function getSlotImage(slot: ItinerarySlot): string {
   if (slot.image) return slot.image;
-  if (slot.place?.image) return slot.place.image;
   if (slot.restaurant?.image) return slot.restaurant.image;
+  if (slot.place?.image) return slot.place.image;
   if (slot.stay?.image) return slot.stay.image;
-  if (slot.title.toLowerCase().includes("việt trì")) {
-    return "/images/places/viet-tri.jpg";
+  const t = (slot.title + " " + (slot.activity || "")).toLowerCase();
+  if (t.includes("cầu vàng") || t.includes("việt trì") || t.includes("xuất phát") || t.includes("khởi hành")) {
+    return "/images/itinerary/cau-vang-viet-tri.jpg";
   }
-  if (slot.type === "meal") return "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=800&auto=format&fit=crop&q=80";
-  if (slot.type === "stay") return "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=800&auto=format&fit=crop&q=80";
-  return "https://images.unsplash.com/photo-1506744038136-46273834b3fb?w=800&auto=format&fit=crop&q=80";
+  if (t.includes("long cốc") || t.includes("đồi chè")) {
+    return "/images/itinerary/long-coc.jpg";
+  }
+  if (t.includes("xuân sơn") || t.includes("bản dù") || t.includes("hang na") || t.includes("hang lạng")) {
+    return "/images/itinerary/xuan-son.jpg";
+  }
+  if (t.includes("đền hùng") || t.includes("nghĩa lĩnh") || t.includes("hùng vương")) {
+    return "/images/itinerary/den-hung.jpg";
+  }
+  if (slot.type === "meal" || t.includes("nhà hàng") || t.includes("ăn sáng") || t.includes("ăn trưa")) {
+    return "/images/itinerary/nha-hang.jpg";
+  }
+  if (slot.type === "stay") return "/images/places/khoang-nong-thanh-thuy.jpg";
+  return "/images/itinerary/den-hung.jpg";
 }
 
 function getSlotCategoryTag(slot: ItinerarySlot, lang: LanguageCode = "vi"): { label: string; modifier: string } {
@@ -424,6 +438,39 @@ function getSlotHighlightsLine(slot: ItinerarySlot, lang: LanguageCode = "vi"): 
     : "Trải nghiệm văn hóa & danh lam thắng cảnh bản địa.";
 }
 
+function getSlotHistoryStory(slot: ItinerarySlot): HistoryStory | null {
+  if (slot.place?.id && PLACE_HISTORY_STORIES[slot.place.id]) {
+    return PLACE_HISTORY_STORIES[slot.place.id];
+  }
+  const titleLow = slot.title.toLowerCase();
+  for (const [key, story] of Object.entries(PLACE_HISTORY_STORIES)) {
+    const keyNorm = key.replace(/-/g, " ");
+    if (titleLow.includes(keyNorm)) {
+      return story;
+    }
+  }
+  if (titleLow.includes("đền hạ")) return PLACE_HISTORY_STORIES["den-hung-ha"];
+  if (titleLow.includes("thiên quang")) return PLACE_HISTORY_STORIES["den-hung-chua"];
+  if (titleLow.includes("đền trung")) return PLACE_HISTORY_STORIES["den-hung-trung"];
+  if (titleLow.includes("đền thượng")) return PLACE_HISTORY_STORIES["den-hung-thuong"];
+  if (titleLow.includes("lăng")) return PLACE_HISTORY_STORIES["den-hung-lang"];
+  if (titleLow.includes("đền giếng")) return PLACE_HISTORY_STORIES["den-hung-gieng"];
+  if (titleLow.includes("bảo tàng")) return PLACE_HISTORY_STORIES["den-hung-bao-tang"];
+  if (titleLow.includes("đền hùng")) return PLACE_HISTORY_STORIES["den-hung"];
+  if (titleLow.includes("thanh thủy") || titleLow.includes("lynn times")) return PLACE_HISTORY_STORIES["thanh-thuy"];
+  if (titleLow.includes("tam đảo")) return PLACE_HISTORY_STORIES["tam-dao"];
+  if (titleLow.includes("long cốc")) return PLACE_HISTORY_STORIES["long-coc"];
+  if (titleLow.includes("xuân sơn")) return PLACE_HISTORY_STORIES["xuan-son"];
+  if (titleLow.includes("hùng lô")) return PLACE_HISTORY_STORIES["hung-lo"];
+  if (titleLow.includes("âu cơ")) return PLACE_HISTORY_STORIES["den-mau-au-co"];
+  if (titleLow.includes("tây thiên")) return PLACE_HISTORY_STORIES["tay-thien"];
+  if (titleLow.includes("mai châu") || titleLow.includes("bản lác")) return PLACE_HISTORY_STORIES["mai-chau"];
+  if (titleLow.includes("kim bôi")) return PLACE_HISTORY_STORIES["khoang-nong-kim-boi"];
+  if (titleLow.includes("thung nai")) return PLACE_HISTORY_STORIES["thung-nai-song-da"];
+  if (titleLow.includes("đảo ngọc xanh")) return PLACE_HISTORY_STORIES["dao-ngoc-xanh"];
+  return null;
+}
+
 export default function VisualItineraryV2(props: VisualItineraryV2Props) {
   const {
     generatedItinerary,
@@ -460,12 +507,14 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
     isBuilderCollapsed = true,
     toggleBuilderCollapse,
     onLanguageChange,
+    onOpenBooking,
   } = props;
 
   const [activeItineraryDay, setActiveItineraryDay] = useState<number>(1);
   const [selectedDetailSlot, setSelectedDetailSlot] = useState<ItinerarySlot | null>(null);
   const [expandedDayStops, setExpandedDayStops] = useState<Record<number, boolean>>({});
   const [showAudioSettings, setShowAudioSettings] = useState<boolean>(false);
+  const [expandedSlotIndex, setExpandedSlotIndex] = useState<number | null>(0);
 
   // Audio state for specific stop narration (Image 2)
   const [selectedStopAudioId, setSelectedStopAudioId] = useState<string>("all");
@@ -608,13 +657,9 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
   const lastTime =
     currentDayPlan?.slots[currentDayPlan.slots.length - 1]?.timeSlot.split("–")[1]?.trim() || "21:00";
 
-  const handleCardClick = (slot: ItinerarySlot) => {
+  const handleCardClick = (slot: ItinerarySlot, sIdx: number) => {
     setSelectedDetailSlot(slot);
-    if (typeof window !== "undefined" && window.innerWidth <= 880) {
-      setTimeout(() => {
-        detailPanelRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-      }, 60);
-    }
+    setExpandedSlotIndex((prev) => (prev === sIdx ? null : sIdx));
   };
 
   const scrollToTimeline = () => {
@@ -1003,13 +1048,13 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
 
                   <article
                     className={`v2-card ${isSelected ? "is-selected" : ""}`}
-                    onClick={() => handleCardClick(slot)}
+                    onClick={() => handleCardClick(slot, sIdx)}
                     role="button"
                     tabIndex={0}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" || e.key === " ") {
                         e.preventDefault();
-                        handleCardClick(slot);
+                        handleCardClick(slot, sIdx);
                       }
                     }}
                   >
@@ -1083,14 +1128,14 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                       <div className="v2-card__foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
                         <button
                           type="button"
-                          className="v2-expand-btn"
+                          className={`v2-expand-btn ${expandedSlotIndex === sIdx ? "is-expanded" : ""}`}
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleCardClick(slot);
+                            handleCardClick(slot, sIdx);
                           }}
                         >
-                          <span>{i18n.viewDetail}</span>
-                          <span className="v2-expand-arrow">⌵</span>
+                          <span>{expandedSlotIndex === sIdx ? (currentLang === "en" ? "Collapse" : "Thu gọn") : i18n.viewDetail}</span>
+                          <span className="v2-expand-arrow">{expandedSlotIndex === sIdx ? "⌃" : "⌵"}</span>
                         </button>
 
                         <button
@@ -1133,6 +1178,154 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                       </div>
                     </div>
                   </article>
+
+                  {/* INLINE DETAIL ACCORDION (THEO YÊU CẦU GÓP Ý 2110) */}
+                  {expandedSlotIndex === sIdx && (
+                    <div className="v2-inline-detail-drawer">
+                      {/* 1. LỊCH SỬ HÌNH THÀNH & TRUYỀN THUYẾT GẮN LIỀN */}
+                      {(() => {
+                        const historyStory = getSlotHistoryStory(slot);
+                        if (!historyStory) return null;
+                        return (
+                          <div className="v2-history-box">
+                            <div className="v2-history-badge">
+                              <span>📜</span>
+                              <b>LỊCH SỬ HÌNH THÀNH & TRUYỀN THUYẾT GẮN LIỀN</b>
+                            </div>
+                            <div className="v2-history-period">
+                              <span>⏳</span>
+                              <small>Niên đại & Dấu mốc:</small>
+                              <b>{historyStory.period}</b>
+                            </div>
+                            <div className="v2-history-content">
+                              <p>
+                                <strong>Truyền thuyết dân gian:</strong> {historyStory.legend}
+                              </p>
+                              <p>
+                                <strong>Lịch sử & Giá trị văn hóa:</strong> {historyStory.history}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* 2. HOẠT ĐỘNG & TRẢI NGHIỆM CHI TIẾT */}
+                      <div className="v2-inline-section">
+                        <div className="v2-inline-section-title">
+                          <span>🎟️</span>
+                          <b>Trải nghiệm & Điểm nhấn</b>
+                        </div>
+                        <p className="v2-inline-section-text">{slot.activity}</p>
+                        {slot.highlightNote && (
+                          <div className="v2-detail-note-badge" style={{ marginTop: "6px" }}>
+                            💡 {slot.highlightNote}
+                          </div>
+                        )}
+                        {slot.transportAdvice && (
+                          <div style={{ fontSize: "12.5px", color: "#64748b", marginTop: "4px" }}>
+                            🚗 <em>Lưu ý di chuyển:</em> {slot.transportAdvice}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* 3. ẨM THỰC / GỢI Ý MÓN NGON & NHÀ HÀNG */}
+                      {slot.restaurant && (
+                        <div className="v2-inline-section" style={{ background: "#f8fafc", padding: "12px", borderRadius: "10px", border: "1px solid #e2e8f0" }}>
+                          <div className="v2-inline-section-title">
+                            <span>🍽️</span>
+                            <b>Ẩm thực đề xuất: {slot.restaurant.name}</b>
+                          </div>
+                          <p className="v2-inline-section-text" style={{ fontSize: "13px" }}>
+                            📍 {slot.restaurant.address}
+                          </p>
+                          <p className="v2-inline-section-text" style={{ fontSize: "13px" }}>
+                            🍲 {slot.restaurant.note}
+                          </p>
+                          {slot.restaurant.taste && (
+                            <p className="v2-inline-section-text" style={{ fontSize: "12.5px", color: "var(--brand-primary, #0f5132)", fontWeight: 600 }}>
+                              ✨ Hương vị: {slot.restaurant.taste}
+                            </p>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 4. CHỖ NGHỈ ĐỀ XUẤT */}
+                      {slot.stay && (
+                        <div className="v2-inline-section" style={{ background: "#f0fdf4", padding: "12px", borderRadius: "10px", border: "1px solid #bbf7d0" }}>
+                          <div className="v2-inline-section-title">
+                            <span>🏨</span>
+                            <b>Điểm nghỉ ngơi: {slot.stay.name}</b>
+                          </div>
+                          <p className="v2-inline-section-text" style={{ fontSize: "13px" }}>
+                            📍 {slot.stay.address}
+                          </p>
+                          <p className="v2-inline-section-text" style={{ fontSize: "13px" }}>
+                            🌿 {slot.stay.note}
+                          </p>
+                          {onOpenBooking && (
+                            <button
+                              type="button"
+                              className="v2-inline-stay-book-btn"
+                              style={{
+                                marginTop: "8px",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                                padding: "6px 14px",
+                                borderRadius: "6px",
+                                background: "var(--brand-primary, #0f5132)",
+                                color: "#ffffff",
+                                border: 0,
+                                fontSize: "12px",
+                                fontWeight: 700,
+                                cursor: "pointer",
+                              }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onOpenBooking(slot.stay!);
+                              }}
+                            >
+                              🏨 {t.detailBookRoom || "Đặt phòng tại"} {slot.stay.name}
+                            </button>
+                          )}
+                        </div>
+                      )}
+
+                      {/* 5. NÚT CHỈ ĐƯỜNG GOOGLE MAPS & THUYẾT MINH ÂM THANH */}
+                      <div className="v2-inline-action-bar">
+                        <a
+                          href={
+                            slot.place
+                              ? `https://www.google.com/maps/dir/?api=1&destination=${slot.place.lat},${slot.place.lng}`
+                              : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(slot.title + " Phú Thọ")}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="v2-inline-maps-btn"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <span>🗺️</span>
+                          <span>Chỉ đường Google Maps</span>
+                        </a>
+
+                        <button
+                          type="button"
+                          className="v2-inline-maps-btn"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            playCustomSlotAudio(slot, `slot-${activeItineraryDay}-${sIdx}`);
+                          }}
+                          style={{
+                            background: activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}` ? "var(--brand-primary, #0f5132)" : "#f8fafc",
+                            color: activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}` ? "#ffffff" : "#0f5132",
+                          }}
+                        >
+                          <span>{activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}` ? "⏸️" : "🎙️"}</span>
+                          <span>{activePlayingSlotId === `slot-${activeItineraryDay}-${sIdx}` ? "Đang thuyết minh..." : "Nghe thuyết minh"}</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -1184,7 +1377,32 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                   </p>
                   <div className="v2-night-foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px" }}>
                     <span className="v2-night-addr">📍 {currentDayPlan.stayForNight.address}</span>
-                    <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                      {onOpenBooking && (
+                        <button
+                          type="button"
+                          className="v2-night-book-btn"
+                          onClick={() => onOpenBooking(currentDayPlan.stayForNight!)}
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "6px 14px",
+                            borderRadius: "999px",
+                            fontSize: "12px",
+                            fontWeight: 700,
+                            background: "#ffffff",
+                            color: "var(--brand-primary, #0f5132)",
+                            border: "1px solid rgba(255, 255, 255, 0.9)",
+                            cursor: "pointer",
+                            boxShadow: "0 2px 8px rgba(0,0,0,0.15)",
+                          }}
+                          title={`Đặt phòng nghỉ tại ${currentDayPlan.stayForNight.name}`}
+                        >
+                          <span>🏨</span>
+                          <span>{t.detailBookRoom || "Đặt phòng nghỉ ngay"}</span>
+                        </button>
+                      )}
                       <button
                         type="button"
                         className={`v2-card-audio-pill ${activePlayingSlotId === "night-stay" ? "is-active" : ""}`}
@@ -1382,212 +1600,7 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
           </div>
         </div>
 
-        {/* RIGHT COLUMN: DETAIL PANEL THEO MẪU CHUẨN IMAGE23.PNG */}
-        <div className="v2-right-column" ref={detailPanelRef}>
-          {activeDetailSlot && (
-            <aside className="v2-detail-panel" aria-label={i18n.detailSectionTitle}>
-              {/* Mobile Back-to-Timeline Button */}
-              <div className="v2-mobile-back-bar">
-                <button
-                  type="button"
-                  className="v2-mobile-back-btn"
-                  onClick={scrollToTimeline}
-                >
-                  {i18n.backToList}
-                </button>
-              </div>
-
-              {/* 1. HERO PHOTO + TIME BADGE */}
-              <div className="v2-detail-hero">
-                <img
-                  src={getSlotImage(activeDetailSlot)}
-                  alt={activeDetailSlot.title}
-                  className="v2-detail-hero__img"
-                  onError={handleImageError}
-                />
-                <span className="v2-detail-hero__time">{activeDetailSlot.timeSlot}</span>
-                <button
-                  type="button"
-                  className="v2-detail-hero__close"
-                  onClick={() => setSelectedDetailSlot(currentDayPlan?.slots[0] || null)}
-                  title="✕"
-                  aria-label="✕"
-                >
-                  ✕
-                </button>
-              </div>
-
-              {/* 2. BODY CONTENT */}
-              <div className="v2-detail-body">
-                {/* Header chặng: Icon + Tiêu đề + Giá */}
-                <div className="v2-detail-header-row">
-                  <h3 className="v2-detail-title">
-                    <span className="v2-detail-type-icon">
-                      {activeDetailSlot.type === "meal"
-                        ? "🍽️"
-                        : activeDetailSlot.type === "stay"
-                        ? "🏨"
-                        : "🚗"}
-                    </span>{" "}
-                    {activeDetailSlot.title}
-                  </h3>
-                  <span className="v2-detail-cost">
-                    {formatMoney(activeDetailSlot.estimatedCostPerPerson)}/{t.tripPerson}
-                  </span>
-                </div>
-
-                {/* 📍 Địa điểm */}
-                <div className="v2-detail-location">
-                  <span className="v2-loc-pin">📍</span>
-                  <span>{getSlotLocationText(activeDetailSlot, currentLang)}</span>
-                </div>
-
-                {/* 🚗 Di chuyển & thể loại */}
-                <div className="v2-detail-meta-row">
-                  <span>🚗 {activeDetailSlot.travelMinutes || 45} {currentLang === "en" ? "mins" : currentLang === "zh" ? "分钟" : currentLang === "ko" ? "분" : currentLang === "ja" ? "分" : "phút"} · {activeDetailSlot.place ? (userPosition ? `${Math.max(1, Math.round(haversineKm(userPosition.lat, userPosition.lng, activeDetailSlot.place.lat, activeDetailSlot.place.lng)))} km (${currentLang === "en" ? "from device" : "từ vị trí của bạn"})` : `${Math.max(1, Math.round(activeDetailSlot.place.distanceFromVietTri * 0.4 || 12))} km`) : "12 km"}</span>
-                  <span className="v2-meta-badge">
-                    {activeDetailSlot.type === "meal" ? (currentLang === "en" ? "🍜 Dining" : currentLang === "zh" ? "🍜 美食餐饮" : currentLang === "ko" ? "🍜 미식" : currentLang === "ja" ? "🍜 グルメ" : "🍜 Ăn uống") : (currentLang === "en" ? "🎟️ Sightseeing" : currentLang === "zh" ? "🎟️ 观光游览" : currentLang === "ko" ? "🎟️ 관광" : currentLang === "ja" ? "🎟️ 観光" : "🎟️ Tham quan")}
-                  </span>
-                </div>
-
-                {/* ⭐ Điểm nổi bật */}
-                <div className="v2-detail-highlight-card">
-                  <div className="v2-hl-head">
-                    <span className="v2-hl-star">⭐</span>
-                    <b>{i18n.highlightPrefix.replace(":", "")}</b>
-                  </div>
-                  <p className="v2-hl-desc">{getSlotHighlightsLine(activeDetailSlot, currentLang)}</p>
-                </div>
-
-                {/* 3. KHỐI "THÔNG TIN CHI TIẾT" CHUẨN IMAGE23.PNG */}
-                <div className="v2-detail-section-title">
-                  <h4>{i18n.detailSectionTitle}</h4>
-                </div>
-
-                {/* Mục 1: Điểm đến */}
-                <div className="v2-info-item">
-                  <div className="v2-info-item__label">
-                    <span>📍</span>
-                    <b>{i18n.destinationLabel}</b>
-                  </div>
-                  <p className="v2-info-item__val">
-                    {activeDetailSlot.place
-                      ? `${activeDetailSlot.place.name} (${activeDetailSlot.place.location})`
-                      : activeDetailSlot.title}
-                  </p>
-                </div>
-
-                {/* Mục 2: Điểm tham quan (danh sách bullet) */}
-                <div className="v2-info-item">
-                  <div className="v2-info-item__label">
-                    <span>⭐</span>
-                    <b>{i18n.sightseeLabel}</b>
-                  </div>
-                  <ul className="v2-info-bullets">
-                    {detailBullets.map((bullet, bIdx) => (
-                      <li key={bIdx}>
-                        <span className="v2-bullet-dot">•</span>
-                        <span>{bullet}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Mục 3: Ăn uống (gợi ý) */}
-                <div className="v2-info-item">
-                  <div className="v2-info-item__label">
-                    <span>🍽️</span>
-                    <b>{i18n.diningLabel}</b>
-                  </div>
-                  <div className="v2-info-dine-box">
-                    <p className="v2-dine-name">
-                      <b>{suggestDineName}</b> <small>({suggestDineDist})</small>
-                    </p>
-                    <p className="v2-dine-dishes">
-                      <span>{i18n.tastyDish}</span> {suggestDineDishes}
-                    </p>
-                  </div>
-                </div>
-
-                {/* Mục 4: Lời dẫn hướng dẫn viên + Nút Nghe thuyết minh */}
-                <div className="v2-info-item v2-info-item--audio">
-                  <div className="v2-info-item__label">
-                    <span>🔊</span>
-                    <b>{i18n.guideNarration}</b>
-                  </div>
-                  <div className="v2-quote-card">
-                    <p className="v2-quote-text">
-                      “{activeQuoteScript}”
-                    </p>
-
-                    <button
-                      type="button"
-                      className={`v2-listen-guide-btn ${isDetailPlacePlaying || activePlayingSlotId === activeDetailSlot.title ? "is-playing" : ""}`}
-                      onClick={() => {
-                        if (activeDetailSlot.audioUrl) {
-                          playCustomSlotAudio(activeDetailSlot, activeDetailSlot.title);
-                        } else if (currentSlotAudio) {
-                          togglePlaceAudio({
-                            id: activeSlotAudioId,
-                            name: activeDetailSlot.title,
-                            audioScript: slotAudioVi || placeAudioVi || currentSlotAudio,
-                            audioScriptEn: slotAudioEn || placeAudioEn || currentSlotAudio,
-                          } as any);
-                        } else if (activeDetailSlot.place) {
-                          togglePlaceAudio(activeDetailSlot.place);
-                        } else {
-                          toggleItineraryAudio();
-                        }
-                      }}
-                    >
-                      <span>{isDetailPlacePlaying || activePlayingSlotId === activeDetailSlot.title ? i18n.pauseGuide : i18n.listenGuide}</span>
-                    </button>
-                  </div>
-                </div>
-
-                {/* 4. CHÂN BẢNG: 2 NÚT HÀNH ĐỘNG "CHỈ ĐƯỜNG" & "LƯU" */}
-                <div className="v2-detail-action-footer">
-                  <a
-                    href={googleMapsDirectionsUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="v2-action-cta v2-action-cta--map"
-                  >
-                    <span>↗</span>
-                    <b>{i18n.directions}</b>
-                  </a>
-
-                  <button
-                    type="button"
-                    className={`v2-action-cta v2-action-cta--save ${
-                      activeDetailSlot.place && favorites.includes(activeDetailSlot.place.id) ? "is-saved" : ""
-                    }`}
-                    onClick={() => {
-                      if (activeDetailSlot.place) {
-                        toggleFavorite(activeDetailSlot.place.id);
-                        showToast(
-                          favorites.includes(activeDetailSlot.place.id)
-                            ? (currentLang === "en" ? "Removed from favorites" : currentLang === "zh" ? "已从收藏夹中移除" : currentLang === "ko" ? "즐겨찾기에서 제거되었습니다" : currentLang === "ja" ? "お気に入りから削除しました" : "Đã xóa khỏi sổ tay yêu thích")
-                            : (currentLang === "en" ? "Saved to favorites! ✦" : currentLang === "zh" ? "已保存到收藏夹！✦" : currentLang === "ko" ? "즐겨찾기에 저장되었습니다! ✦" : currentLang === "ja" ? "お気に入りに保存しました！✦" : "Đã lưu vào sổ tay yêu thích! ✦")
-                        );
-                      } else {
-                        savePlan();
-                      }
-                    }}
-                  >
-                    <span>🔖</span>
-                    <b>
-                      {activeDetailSlot.place && favorites.includes(activeDetailSlot.place.id)
-                        ? i18n.saved
-                        : i18n.save}
-                    </b>
-                  </button>
-                </div>
-              </div>
-            </aside>
-          )}
         </div>
       </div>
-    </div>
   );
 }

@@ -8,7 +8,7 @@ const nextConfig: NextConfig = {
   basePath: isGitHubPages ? basePath : "",
   assetPrefix: isGitHubPages ? basePath : "",
   trailingSlash: isGitHubPages,
-  images: { unoptimized: isGitHubPages },
+  images: { unoptimized: true },
   poweredByHeader: false,
   reactStrictMode: true,
 };

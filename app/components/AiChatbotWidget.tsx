@@ -92,11 +92,14 @@ export default function AiChatbotWidget({
     };
   }, []);
 
-  const togglePlayVoice = (msgId: string, audioUrl?: string) => {
+  const togglePlayVoice = async (msgId: string, textContent?: string, audioUrl?: string) => {
     if (playingVoiceId === msgId) {
       if (voiceAudioRef.current) {
         voiceAudioRef.current.pause();
         voiceAudioRef.current = null;
+      }
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
       }
       setPlayingVoiceId(null);
       return;
@@ -106,34 +109,124 @@ export default function AiChatbotWidget({
       voiceAudioRef.current.pause();
       voiceAudioRef.current = null;
     }
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+    }
 
-    // ALWAYS play the authentic recorded female voice file (giong_mau.m4a / giong_mau.wav)
-    const primaryUrl = audioUrl || `${basePath}/audio/giong_mau.m4a`;
-    const fallbackUrl = `${basePath}/audio/giong_mau.wav`;
-    const audio = new Audio(primaryUrl);
-    voiceAudioRef.current = audio;
-    setPlayingVoiceId(msgId);
-
-    const tryFallback = () => {
-      const fb = new Audio(fallbackUrl);
-      voiceAudioRef.current = fb;
-      fb.play().catch(() => setPlayingVoiceId(null));
-      fb.onended = () => {
+    // 1. If explicit audioUrl is provided, play that audio file
+    if (audioUrl) {
+      const audio = new Audio(audioUrl);
+      voiceAudioRef.current = audio;
+      setPlayingVoiceId(msgId);
+      audio.onended = () => {
         setPlayingVoiceId(null);
         voiceAudioRef.current = null;
       };
-      fb.onerror = () => {
+      audio.onerror = () => {
         setPlayingVoiceId(null);
         voiceAudioRef.current = null;
       };
-    };
+      audio.play().catch(() => {
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      });
+      return;
+    }
 
-    audio.play().catch(tryFallback);
-    audio.onended = () => {
+    // 2. If the message specifically asks about the user's Long Cốc – Xuân Sơn tour, play the authentic recorded female voice
+    const lowerText = (textContent || "").toLowerCase();
+    const isLongCocTour =
+      (lowerText.includes("long cốc") && lowerText.includes("xuân sơn")) ||
+      lowerText.includes("giọng mẫu") ||
+      lowerText.includes("giong mau");
+
+    if (isLongCocTour) {
+      const primaryUrl = `${basePath}/audio/giong_mau.m4a`;
+      const audio = new Audio(primaryUrl);
+      voiceAudioRef.current = audio;
+      setPlayingVoiceId(msgId);
+      audio.onended = () => {
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      };
+      audio.play().catch(() => {
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      });
+      return;
+    }
+
+    // 3. For other tours (Tam Đảo, Đền Hùng, etc.) and responses, speak the ACTUAL message content using AI Voice
+    const cleanText = (textContent || "")
+      .replace(/[#*_`~>]/g, "")
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      .trim();
+
+    if (!cleanText) return;
+
+    if (typeof window !== "undefined" && "speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const voices = window.speechSynthesis.getVoices();
+      const viVoice =
+        voices.find((v) => /hoaimy|hoai my|linh|mai|chi|female|nữ/i.test(v.name) && v.lang.startsWith("vi")) ||
+        voices.find((v) => v.lang.toLowerCase().startsWith("vi"));
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.lang = "vi-VN";
+      if (viVoice) utterance.voice = viVoice;
+      utterance.rate = 1.0;
+      utterance.pitch = 1.02;
+
+      utterance.onstart = () => {
+        setPlayingVoiceId(msgId);
+      };
+      utterance.onend = () => {
+        setPlayingVoiceId(null);
+      };
+      utterance.onerror = (e) => {
+        if (e.error === "canceled" || e.error === "interrupted") return;
+        setPlayingVoiceId(null);
+      };
+
+      setPlayingVoiceId(msgId);
+      window.speechSynthesis.speak(utterance);
+      return;
+    }
+
+    // Fallback to server-side TTS streaming
+    try {
+      setPlayingVoiceId(msgId);
+      const res = await fetch("/api/tts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          text: cleanText.slice(0, 300),
+          lang: "vi",
+          gender: "female",
+        }),
+      });
+      if (!res.ok) throw new Error("TTS failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      voiceAudioRef.current = audio;
+      audio.onended = () => {
+        URL.revokeObjectURL(url);
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      };
+      audio.onerror = () => {
+        URL.revokeObjectURL(url);
+        setPlayingVoiceId(null);
+        voiceAudioRef.current = null;
+      };
+      audio.play();
+    } catch {
       setPlayingVoiceId(null);
-      voiceAudioRef.current = null;
-    };
-    audio.onerror = tryFallback;
+    }
   };
 
   // Stop generation handler (allows user to immediately finish streaming)
@@ -571,38 +664,8 @@ export default function AiChatbotWidget({
       return;
     }
 
-    if (value === "plan_long_coc") {
-      handleProcessInput("Tôi muốn đi Đồi chè Long Cốc");
-      return;
-    }
-
-    if (value === "plan_thanh_thuy") {
-      handleProcessInput("Tôi muốn đi Suối khoáng nóng Thanh Thủy");
-      return;
-    }
-
-    if (value === "plan_xuan_son") {
-      handleProcessInput("Tôi muốn đi Vườn quốc gia Xuân Sơn");
-      return;
-    }
-
-    if (value === "plan_food_tour") {
-      handleProcessInput("Lên lịch trình tour ẩm thực đặc sản 2 ngày 1 đêm");
-      return;
-    }
-
-    if (value === "ask_foods") {
-      handleProcessInput("Đặc sản Phú Thọ có gì ngon?");
-      return;
-    }
-
-    if (value === "tour_2n1d") {
-      handleProcessInput("lịch trình du lịch theo file 2 ngày 1 đêm");
-      return;
-    }
-
-    if (value === "tour_long_coc") {
-      handleProcessInput("lịch trình long cốc xuân sơn");
+    if (value === "plan_long_coc" || value === "tour_long_coc") {
+      handleProcessInput("Hãy xây dựng lịch trình du lịch 1 ngày xuất phát từ Việt Trì, kết hợp khám phá Đồi chè Long Cốc và Vườn quốc gia Xuân Sơn. Ưu tiên săn mây tại Long Cốc vào sáng sớm, đồng thời gợi ý các địa điểm ăn sáng, ăn trưa và nghỉ chân hợp lý, đảm bảo lịch trình khoa học, tối ưu thời gian và có thể trải nghiệm.");
       return;
     }
 
@@ -691,7 +754,7 @@ export default function AiChatbotWidget({
 
     if (value === "play_sample_voice") {
       const targetMsg = [...messages].reverse().find((m) => m.sender === "ai");
-      togglePlayVoice(targetMsg?.id || `sample-${Date.now()}`);
+      togglePlayVoice(targetMsg?.id || `sample-${Date.now()}`, targetMsg?.text || "giọng mẫu");
       return;
     }
 
@@ -1125,11 +1188,11 @@ export default function AiChatbotWidget({
                         <button
                           type="button"
                           className={`ai-voice-play-pill ${playingVoiceId === msg.id ? "is-playing" : ""}`}
-                          onClick={() => togglePlayVoice(msg.id)}
-                          title="Bấm để nghe thuyết minh giọng đọc mẫu"
+                          onClick={() => togglePlayVoice(msg.id, msg.text)}
+                          title="Bấm để nghe thuyết minh âm thanh"
                         >
                           <span className="ai-voice-icon">{playingVoiceId === msg.id ? "⏸️" : "🎙️"}</span>
-                          <span>{playingVoiceId === msg.id ? "Đang phát giọng bạn Nữ (Bấm để dừng)" : "🎙️ Nghe giọng bạn Nữ thuyết minh"}</span>
+                          <span>{playingVoiceId === msg.id ? "Đang phát thuyết minh (Bấm để dừng)" : "🎙️ Nghe thuyết minh âm thanh"}</span>
                           {playingVoiceId === msg.id && (
                             <span className="ai-voice-wave">
                               <span /><span /><span />

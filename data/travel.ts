@@ -91,12 +91,12 @@ export type DirectoryPlace = {
   notes: string;
 };
 
-const foodPhoto = "https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=900&q=82";
-const fishPhoto = "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=82";
-const meatPhoto = "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=900&q=82";
-const homestayPhoto = "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?auto=format&fit=crop&w=900&q=82";
-const hotelPhoto = "https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=900&q=82";
-const resortPhoto = "https://images.unsplash.com/photo-1582719508461-905c673771fd?auto=format&fit=crop&w=900&q=82";
+const foodPhoto = "/images/food/ga-doi-doan-hung.jpg";
+const fishPhoto = "/images/food/ca-lang-song-da.jpg";
+const meatPhoto = "/images/food/thit-chua-thanh-son.jpg";
+const homestayPhoto = "/images/places/xuan-son.jpg";
+const hotelPhoto = "/images/places/thanh-thuy.jpg";
+const resortPhoto = "/images/places/khoang-nong-thanh-thuy.jpg";
 
 export const places: Place[] = [
   // ==================== PHÚ THỌ LÕI (ĐẤT TỔ) ====================
@@ -107,7 +107,7 @@ export const places: Place[] = [
     category: "Di sản & tâm linh",
     region: "Phú Thọ",
     district: "Việt Trì",
-    location: "xã Hy Cương, tỉnh Phú Thọ",
+    location: "Xã Hy Cương, TP. Việt Trì, Phú Thọ",
     locationEn: "Hy Cương, Phu Tho",
     image: "/images/places/den-hung.png",
     imageCredit: "Khu di tích lịch sử Đền Hùng",
@@ -208,7 +208,7 @@ export const places: Place[] = [
     category: "Núi rừng & sinh thái",
     region: "Phú Thọ",
     district: "Tân Sơn",
-    location: "xã Xuân Đài, tỉnh Phú Thọ",
+    location: "Xã Xuân Sơn, Huyện Tân Sơn, Phú Thọ",
     locationEn: "Xuan Dai, Phu Tho",
     image: "/images/places/xuan-son.png",
     imageCredit: "Trung tâm TTXT Du lịch Phú Thọ",
@@ -279,7 +279,7 @@ export const places: Place[] = [
     category: "Check-in & vui chơi",
     region: "Phú Thọ",
     district: "Tân Sơn",
-    location: "xã Long Cốc, tỉnh Phú Thọ",
+    location: "Xã Long Cốc, Huyện Tân Sơn, Phú Thọ",
     locationEn: "Long Cốc, Phu Tho",
     image: "/images/places/long-coc.jpg",
     imageCredit: "Trung tâm TTXT Du lịch Phú Thọ",
@@ -349,7 +349,7 @@ export const places: Place[] = [
     category: "Nghỉ dưỡng & chữa lành",
     region: "Phú Thọ",
     district: "Thanh Thủy",
-    location: "xã Thanh Thủy, tỉnh Phú Thọ",
+    location: "Thị trấn Thanh Thủy, Huyện Thanh Thủy, Phú Thọ",
     locationEn: "Thanh Thuy town, Phu Tho province",
     image: "/images/places/thanh-thuy.jpg",
     imageCredit: "Khu nghỉ dưỡng khoáng nóng Thanh Thủy",
@@ -503,7 +503,7 @@ export const places: Place[] = [
     category: "Văn hóa & làng nghề",
     region: "Phú Thọ",
     district: "Việt Trì",
-    location: "phường Vân Phú, tỉnh Phú Thọ",
+    location: "Xã Hùng Lô, TP. Việt Trì, Phú Thọ",
     locationEn: "Vân Phú, Phu Tho",
     image: "/images/places/hung-lo.jpg",
     imageCredit: "Cổng thông tin du lịch Phú Thọ",
@@ -572,7 +572,7 @@ export const places: Place[] = [
     category: "Di sản & tâm linh",
     region: "Phú Thọ",
     district: "Hạ Hòa",
-    location: "xã Hiền Lương, tỉnh Phú Thọ",
+    location: "Xã Hiền Lương, Huyện Hạ Hòa, Phú Thọ",
     locationEn: "Hiền Lương, Ha Hoa",
     image: "/images/places/den-mau-au-co.jpg",
     imageCredit: "Trung tâm TTXT Du lịch Phú Thọ",
@@ -640,7 +640,7 @@ export const places: Place[] = [
     category: "Núi rừng & sinh thái",
     region: "Phú Thọ",
     district: "Hạ Hòa",
-    location: "xã Hạ Hòa, tỉnh Phú Thọ",
+    location: "Thị trấn Hạ Hòa, Huyện Hạ Hòa, Phú Thọ",
     locationEn: "Ha Hoa, Phu Tho",
     image: "/images/places/dam-ao-chau.jpg",
     imageCredit: "Cổng thông tin du lịch Phú Thọ",
@@ -710,7 +710,7 @@ export const places: Place[] = [
     category: "Nghỉ dưỡng & chữa lành",
     region: "Vĩnh Phúc",
     district: "Tam Đảo",
-    location: "xã Tam Đảo, tỉnh Phú Thọ",
+    location: "Thị trấn Tam Đảo, Huyện Tam Đảo, Vĩnh Phúc",
     locationEn: "Tam Dao, Phu Tho",
     image: "/images/places/tam-dao.jpg",
     imageCredit: "Cổng thông tin du lịch Tam Đảo",
@@ -809,7 +809,7 @@ export const places: Place[] = [
     category: "Di sản & tâm linh",
     region: "Vĩnh Phúc",
     district: "Tam Đảo",
-    location: "xã Đại Đình, tỉnh Phú Thọ",
+    location: "Xã Đại Đình, Huyện Tam Đảo, Vĩnh Phúc",
     locationEn: "Đại Đình, Phu Tho",
     image: "/images/places/tay-thien.jpg",
     imageCredit: "Ban Quản lý Di tích Quốc gia đặc biệt Tây Thiên",
@@ -880,7 +880,7 @@ export const places: Place[] = [
     category: "Check-in & vui chơi",
     region: "Vĩnh Phúc",
     district: "Phúc Yên",
-    location: "Phường Xuân Hòa, tỉnh Phú Thọ",
+    location: "Xã Ngọc Thanh, TP. Phúc Yên, Vĩnh Phúc",
     locationEn: "Xuân Hòa, Phu Tho",
     image: "/images/places/ho-dai-lai.jpg",
     imageCredit: "Cổng thông tin xúc tiến du lịch Vĩnh Phúc",
@@ -962,7 +962,7 @@ export const places: Place[] = [
     category: "Di sản & tâm linh",
     region: "Vĩnh Phúc",
     district: "Vĩnh Yên",
-    location: "Phường Vĩnh Yên, tỉnh Phú Thọ",
+    location: "Phường Định Trung, TP. Vĩnh Yên, Vĩnh Phúc",
     locationEn: "Vĩnh Yên, Phu Tho",
     image: "/images/places/chua-ha-tien.jpg",
     imageCredit: "Cổng thông tin Phật giáo Vĩnh Phúc",
@@ -1030,7 +1030,7 @@ export const places: Place[] = [
     category: "Văn hóa & làng nghề",
     region: "Vĩnh Phúc",
     district: "Bình Xuyên",
-    location: "xã Bình Nguyên, tỉnh Phú Thọ",
+    location: "Thị trấn Hương Canh, Huyện Bình Xuyên, Vĩnh Phúc",
     locationEn: "Bình Nguyên, Phu Tho",
     image: "/images/places/lang-gom-huong-canh.jpg",
     imageCredit: "Hội Làng nghề truyền thống gốm Hương Canh",
@@ -1100,7 +1100,7 @@ export const places: Place[] = [
     category: "Văn hóa & làng nghề",
     region: "Hòa Bình",
     district: "Mai Châu",
-    location: "xã Mai Châu, tỉnh Phú Thọ",
+    location: "Bản Lác, Huyện Mai Châu, Hòa Bình",
     locationEn: "Mai Châu, Phu Tho",
     image: "/images/places/ban-lac-mai-chau.jpg",
     imageCredit: "Du lịch cộng đồng thung lũng Mai Châu",
@@ -1184,7 +1184,7 @@ export const places: Place[] = [
     category: "Nghỉ dưỡng & chữa lành",
     region: "Hòa Bình",
     district: "Kim Bôi",
-    location: "xã Bo, tỉnh Phú Thọ",
+    location: "Thị trấn Bo, Huyện Kim Bôi, Hòa Bình",
     locationEn: "Bo town, Phu Tho province",
     image: "/images/places/khoang-nong-kim-boi.jpg",
     imageCredit: "Khu du lịch sinh thái suối khoáng Kim Bôi",
@@ -1268,7 +1268,7 @@ export const places: Place[] = [
     category: "Núi rừng & sinh thái",
     region: "Hòa Bình",
     district: "Cao Phong",
-    location: "Xã Thung Nai, tỉnh Phú Thọ",
+    location: "Xã Thung Nai, Huyện Cao Phong, Hòa Bình",
     locationEn: "Thung Nai, Phu Tho",
     image: "/images/places/thung-nai-song-da.jpg",
     imageCredit: "Cổng thông tin xúc tiến du lịch lòng hồ Hòa Bình",
@@ -1338,7 +1338,7 @@ export const places: Place[] = [
     category: "Check-in & vui chơi",
     region: "Hòa Bình",
     district: "Mai Châu",
-    location: "Xã Pà Cò, tỉnh Phú Thọ",
+    location: "Xã Pà Cò, Huyện Mai Châu, Hòa Bình",
     locationEn: "Pà Cò, Phu Tho",
     image: "/images/places/pa-co-san-may.jpg",
     imageCredit: "Cổng thông tin du lịch Pà Cò",
@@ -1407,7 +1407,7 @@ export const places: Place[] = [
     category: "Văn hóa & làng nghề",
     region: "Hòa Bình",
     district: "TP. Hòa Bình",
-    location: "phường Thái Bình, tỉnh Phú Thọ",
+    location: "Phường Thái Bình, TP. Hòa Bình, Hòa Bình",
     locationEn: "Thai Binh Ward, Phu Tho",
     image: "/images/places/bao-tang-muong.jpg",
     imageCredit: "Bảo tàng Không gian Văn hóa Mường",
@@ -2612,7 +2612,7 @@ export type FoodRegion = {
 export const foodRegions: FoodRegion[] = [
   {
     id: "phu-tho-dac-san",
-    label: "Khu vực Phú Thọ cũ",
+    label: "Khu vực Phú Thọ",
     subtitle: "Hương vị cội nguồn: Bánh tai, thịt chua Thanh Sơn, xáo chuối Lâm Thao, cọ ỏm, bưởi Đoan Hùng, canh rau sắn",
     dishes: [
       {
@@ -2827,7 +2827,7 @@ export const foodRegions: FoodRegion[] = [
   },
   {
     id: "vinh-phuc-dac-san",
-    label: "Khu vực Vĩnh Phúc cũ",
+    label: "Khu vực Vĩnh Phúc",
     subtitle: "Mỹ vị đồng quê & non cao: Cá thính Lập Thạch, bò tái kiến đốt, chè kho Tứ Yên, dứa Tam Dương, tép Đầm Vạc, rau su su",
     dishes: [
       {
@@ -3016,7 +3016,7 @@ export const foodRegions: FoodRegion[] = [
   },
   {
     id: "hoa-binh-dac-san",
-    label: "Khu vực Hòa Bình cũ",
+    label: "Khu vực Hòa Bình",
     subtitle: "Mỹ vị đại ngàn Tây Bắc: Cơm lam nếp nương, thịt lợn muối chua, gà đồi nấu măng, chả cuốn lá bưởi, cá nướng sông Đà, thịt trâu lá lồm, rượu cần Mường",
     dishes: [
       {

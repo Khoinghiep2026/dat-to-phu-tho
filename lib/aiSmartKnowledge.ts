@@ -807,6 +807,11 @@ export function handleSmartKnowledgeQuery(
 
   const greeting = userName ? `Chào **${userName}**! ` : "Dạ, ";
 
+  // 0. OFFICIAL LONG COC - XUAN SON 1-DAY TOUR
+  if (isAskingOfficialLongCocXuanSonTour(trimmed)) {
+    return buildOfficialLongCocXuanSonResponse(survey, greeting);
+  }
+
   // 1. GREETING & IDENTITY
   const isGreetingQuery =
     /^(?:chào|chao|xin chào|xin chao|hello|alo|hé lô|helo|chào em|chào bạn|chao em|chao ban|ad ơi|ad oi|bạn ơi|ban oi)(?:\s|$|[!.,?])/i.test(lower) ||

@@ -1218,6 +1218,15 @@
   height: 105px;
   background-size: cover;
   background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.challenge-card-dest-img-tag {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .challenge-card-dest-info {
@@ -1383,10 +1392,101 @@
 @media (max-width: 900px) {
   .travel-challenge-banner__inner {
     grid-template-columns: 1fr;
-    gap: 28px;
+    gap: 24px;
   }
   .travel-challenge-banner__right {
     order: -1;
+    display: flex;
+    justify-content: center;
+  }
+}
+
+@media (max-width: 640px) {
+  .travel-challenge-banner {
+    padding: 22px 12px;
+    border-radius: 22px;
+  }
+  .travel-challenge-visual {
+    width: 100%;
+    max-width: 335px;
+    margin: 0 auto;
+    justify-content: center;
+    gap: 6px;
+  }
+  .challenge-card-destination {
+    width: 132px;
+    min-width: 0;
+    flex-shrink: 1;
+    border-radius: 14px;
+    transform: rotate(-2deg);
+  }
+  .challenge-card-dest-img {
+    height: 84px;
+  }
+  .challenge-card-dest-info {
+    padding: 7px 8px;
+  }
+  .challenge-card-dest-badge {
+    font-size: 9px;
+  }
+  .challenge-card-dest-title {
+    font-size: 11px;
+    line-height: 1.25;
+  }
+  .challenge-card-dest-sub {
+    font-size: 8.5px;
+  }
+  .challenge-card-trail {
+    width: 28px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+  .challenge-card-phone {
+    width: 124px;
+    min-width: 0;
+    flex-shrink: 1;
+    border-radius: 18px;
+    padding: 6px 5px;
+    transform: rotate(2deg);
+  }
+  .challenge-phone-screen {
+    border-radius: 14px;
+    padding: 8px 6px 10px;
+  }
+  .challenge-phone-notch {
+    width: 26px;
+    height: 3px;
+    margin-bottom: 6px;
+  }
+  .challenge-phone-title {
+    font-size: 9.5px;
+  }
+  .challenge-phone-points {
+    font-size: 9px;
+  }
+  .challenge-phone-circle-wrap {
+    margin: 4px 0 8px;
+  }
+  .challenge-phone-circle {
+    width: 54px;
+    height: 54px;
+  }
+  .challenge-circle-text strong {
+    font-size: 11.5px;
+    line-height: 1;
+  }
+  .challenge-circle-text small {
+    font-size: 7px;
+  }
+  .challenge-phone-gift-box {
+    padding: 3px 5px;
+    gap: 4px;
+  }
+  .challenge-phone-gift-icon {
+    font-size: 11px;
+  }
+  .challenge-phone-gift-label {
+    font-size: 8.5px;
   }
 }
 

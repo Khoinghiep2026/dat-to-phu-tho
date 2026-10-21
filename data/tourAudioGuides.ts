@@ -155,7 +155,7 @@ export const TOUR_AUDIO_GUIDES: {
       title: "Đồi chè Long Cốc – Đón bình minh & săn mây",
       stopName: "Đồi chè Long Cốc",
       audioFile: "/audio/tours/tour-longcoc-xuanson/02_doi_che_long_coc.m4a",
-      text: "Kính thưa quý khách, điểm dừng chân đầu tiên của chúng ta là Đồi chè Long Cốc, thuộc xã Long Cốc, tỉnh Phú Thọ. Đây là một trong những điểm nổi bật của vùng trung du miền núi phía Bắc, được nhiều du khách yêu thích bởi vẻ đẹp xanh mướt, yên bình và những đồi chè có hình dáng uốn lượn đặc trưng. Nhìn từ trên cao, những đồi chè tròn nối tiếp nhau như những chiếc bát úp khổng lồ, trải dài đến tận chân trời. Khi ánh bình minh dần xuất hiện, ánh nắng nhẹ nhàng phủ lên những luống chè, tạo nên một bức tranh thiên nhiên vừa thơ mộng vừa hùng vĩ. Đặc biệt, vào những ngày thời tiết thuận lợi, nơi đây có thể xuất hiện biển mây bồng bềnh len lỏi giữa các đồi chè...",
+      text: "Kính thưa quý khách, điểm dừng chân đầu tiên của chúng ta là Đồi chè Long Cốc, thuộc xã Long Cốc, tỉnh Phú Thọ. Đây là một trong những điểm nổi bật của vùng trung du miền núi phía Bắc, được nhiều du khách yêu thích bởi vẻ đẹp xanh mướt, yên bình và những đồi chè có hình dáng uốn lượn đặc trưng. Nhìn từ trên cao, những đồi chè tròn nối tiếp nhau như những chiếc bát úp khổng lồ, trải dài đến tận chân trời. Khi ánh bình minh dần xuất hiện, ánh nắng nhẹ nhàng phủ lên những luống chè, tạo nên một bức tranh thiên nhiên vừa thơ mộng vừa hùng vĩ. Đặc biệt, vào những ngày thời tiết thuận lợi, nơi đây có thể xuất hiện biển mây bồng bềnh len lỏi giữa các đồi chè, mang lại cho quý khách những phút giây thư thái trọn vẹn giữa núi rừng Tây Bắc.",
       durationSec: 92,
     },
     "long-coc-tony-luan": {
@@ -183,7 +183,7 @@ export const TOUR_AUDIO_GUIDES: {
       title: "Tham quan Vườn quốc gia Xuân Sơn",
       stopName: "Vườn quốc gia Xuân Sơn",
       audioFile: "/audio/tours/tour-longcoc-xuanson/06_tham_quan_vqg_xuan_son.m4a",
-      text: "Kính thưa quý khách, chào mừng quý khách đến với Vườn quốc gia Xuân Sơn, một điểm đến tiêu biểu dành cho những người yêu thích thiên nhiên, khám phá rừng xanh và tìm hiểu văn hóa cộng đồng miền núi. Vườn quốc gia Xuân Sơn được thành lập theo quyết định ngày 17/4/2002 của Thủ tướng Chính phủ, là nơi có ý nghĩa quan trọng trong công tác bảo tồn hệ sinh thái rừng, đa dạng sinh học và các giá trị cảnh quan tự nhiên. Một trong những nét đặc trưng của Xuân Sơn là địa hình núi đá vôi với những dãy núi nối tiếp nhau, những khu vực rừng nguyên sinh và hệ thống hang động tự nhiên...",
+      text: "Kính thưa quý khách, chào mừng quý khách đến với Vườn quốc gia Xuân Sơn, một điểm đến tiêu biểu dành cho những người yêu thích thiên nhiên, khám phá rừng xanh và tìm hiểu văn hóa cộng đồng miền núi. Vườn quốc gia Xuân Sơn được thành lập theo quyết định ngày 17/4/2002 của Thủ tướng Chính phủ, là nơi có ý nghĩa quan trọng trong công tác bảo tồn hệ sinh thái rừng, đa dạng sinh học và các giá trị cảnh quan tự nhiên. Một trong những nét đặc trưng của Xuân Sơn là địa hình núi đá vôi với những dãy núi nối tiếp nhau, những khu vực rừng nguyên sinh và hệ thống hang động tự nhiên kỳ thú, tạo nên không gian sinh thái vô cùng phong phú và hấp dẫn.",
       durationSec: 97,
     },
     "xuan-son-the-nhe": {
@@ -197,7 +197,7 @@ export const TOUR_AUDIO_GUIDES: {
       title: "Khám phá Bản Dù & Văn hóa bản địa Dao – Mường",
       stopName: "Bản Dù – VQG Xuân Sơn",
       audioFile: "/audio/tours/tour-longcoc-xuanson/08_ban_du_van_hoa.m4a",
-      text: "Kính thưa quý khách, sau bữa trưa, chúng ta sẽ dành thời gian để tìm hiểu về khu vực Bản Dù và không gian văn hóa địa phương quanh Thanh Sơn. Nhắc đến những bản làng miền núi, điều khiến du khách ấn tượng không chỉ là cảnh quan mà còn là nhịp sống gần gũi với thiên nhiên. Đối với các cộng đồng dân tộc sinh sống tại Xuân Sơn, văn hóa truyền thống là một phần quan trọng trong đời sống: những phong tục, tập quán và cách ứng xử với môi trường tự nhiên phản ánh sự gắn bó lâu đời giữa con người với núi rừng...",
+      text: "Kính thưa quý khách, sau bữa trưa, chúng ta sẽ dành thời gian để tìm hiểu về khu vực Bản Dù và không gian văn hóa địa phương quanh Thanh Sơn. Nhắc đến những bản làng miền núi, điều khiến du khách ấn tượng không chỉ là cảnh quan mà còn là nhịp sống gần gũi với thiên nhiên. Đối với các cộng đồng dân tộc sinh sống tại Xuân Sơn, văn hóa truyền thống là một phần quan trọng trong đời sống: những phong tục, tập quán và cách ứng xử với môi trường tự nhiên phản ánh sự gắn bó lâu đời giữa con người với núi rừng. Chúc quý khách có những kỷ niệm thật đẹp và sâu sắc tại bản làng nơi đây.",
       durationSec: 61,
     },
     "long-coc-ve-viet-tri": {
