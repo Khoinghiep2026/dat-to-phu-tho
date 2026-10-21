@@ -1046,8 +1046,9 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                     <div className="v2-timeline-line"></div>
                   </div>
 
-                  <article
-                    className={`v2-card ${isSelected ? "is-selected" : ""}`}
+                  <div className="v2-timeline-card-col">
+                    <article
+                      className={`v2-card ${isSelected ? "is-selected" : ""}`}
                     onClick={() => handleCardClick(slot, sIdx)}
                     role="button"
                     tabIndex={0}
@@ -1125,7 +1126,7 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                       </div>
 
                       {/* Dòng 6: Nút Xem chi tiết & Nút Thuyết minh riêng từng điểm (Ảnh 2) */}
-                      <div className="v2-card__foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px" }}>
+                      <div className="v2-card__foot" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                         <button
                           type="button"
                           className={`v2-expand-btn ${expandedSlotIndex === sIdx ? "is-expanded" : ""}`}
@@ -1326,6 +1327,7 @@ export default function VisualItineraryV2(props: VisualItineraryV2Props) {
                       </div>
                     </div>
                   )}
+                  </div>
                 </div>
               );
             })}
