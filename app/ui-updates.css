@@ -5337,7 +5337,199 @@ html, body {
   }
 }
 
+/* ==========================================================================
+   20. KHẮC PHỤC TRIỆT ĐỂ LỖI XUỐNG DÒNG TRÊN HEADER / TOPBAR V2
+   ========================================================================== */
 
+/* 20.1 Chống gãy dòng (nowrap) tuyệt đối trên toàn bộ thanh Header Topbar */
+.topbar--v2 {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  flex-wrap: nowrap !important;
+  gap: clamp(10px, 1.5vw, 24px) !important;
+  min-height: 72px !important;
+  overflow-x: visible !important;
+}
 
+.brand--v2 {
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
+}
 
+.brand__full-logo-img {
+  flex-shrink: 0 !important;
+}
 
+/* 20.2 Menu điều hướng chính trên Desktop (Desktop Nav) */
+.desktop-nav--v2 {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  flex-shrink: 0 !important;
+  gap: clamp(10px, 1.6vw, 26px) !important;
+  white-space: nowrap !important;
+}
+
+.desktop-nav--v2 button {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: keep-all !important;
+  overflow-wrap: normal !important;
+  font-size: clamp(13px, 1vw, 15px) !important;
+  padding: 8px clamp(6px, 0.7vw, 12px) !important;
+  line-height: 1.2 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+}
+
+.nav-near-btn {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: keep-all !important;
+}
+
+.nav-near-btn .nav-near-dot {
+  margin-right: 2px !important;
+}
+
+/* 20.3 Cụm nút hành động bên phải (Top Actions) */
+.topbar__actions {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  flex-shrink: 0 !important;
+  gap: clamp(6px, 0.8vw, 12px) !important;
+  white-space: nowrap !important;
+}
+
+/* Widget Thời tiết */
+.weather-pill {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  padding: 6px 11px !important;
+  border-radius: 999px !important;
+  background: rgba(245, 243, 237, 0.8) !important;
+  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+}
+
+.weather-pill > span {
+  font-size: 17px !important;
+  line-height: 1 !important;
+  margin: 0 !important;
+}
+
+.weather-pill b {
+  font-size: 13.5px !important;
+  white-space: nowrap !important;
+  line-height: 1 !important;
+}
+
+.weather-pill small {
+  font-size: 10px !important;
+  white-space: nowrap !important;
+  text-transform: uppercase !important;
+  letter-spacing: 0.04em !important;
+  line-height: 1 !important;
+  display: inline !important;
+}
+
+/* Nút Chọn Ngôn ngữ */
+.i18n-dropdown-container {
+  flex-shrink: 0 !important;
+}
+
+.lang-pill-btn {
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  height: 36px !important;
+  padding: 0 10px !important;
+}
+
+/* Nút Yêu thích & Giỏ hàng */
+.topbar__heart-btn,
+.topbar__cart-btn {
+  flex-shrink: 0 !important;
+}
+
+/* Nút Đặt phòng lưu trú */
+.topbar__stay-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: keep-all !important;
+  padding: 8px clamp(10px, 1.1vw, 16px) !important;
+  font-size: clamp(12.5px, 0.9vw, 13.5px) !important;
+  gap: 6px !important;
+  line-height: 1.2 !important;
+}
+
+.topbar__stay-btn-text {
+  white-space: nowrap !important;
+  display: inline-block !important;
+  word-break: keep-all !important;
+}
+
+/* Nút Đăng nhập dạng Viên thuốc */
+.topbar__login-pill-btn {
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  flex-wrap: nowrap !important;
+  white-space: nowrap !important;
+  flex-shrink: 0 !important;
+  word-break: keep-all !important;
+  padding: 8px clamp(14px, 1.3vw, 22px) !important;
+  font-size: clamp(13px, 0.9vw, 14px) !important;
+  line-height: 1.2 !important;
+}
+
+.topbar__login-pill-btn span {
+  white-space: nowrap !important;
+  word-break: keep-all !important;
+}
+
+/* 20.4 Điều chỉnh mượt mà trên Laptop & Màn hình hẹp (1081px - 1366px) */
+@media (max-width: 1366px) {
+  .topbar--v2 {
+    padding: 0 clamp(12px, 1.8vw, 24px) !important;
+    gap: 10px !important;
+  }
+  .desktop-nav--v2 {
+    gap: 12px !important;
+  }
+  .desktop-nav--v2 button {
+    padding: 6px 8px !important;
+    font-size: 13.5px !important;
+  }
+  .topbar__actions {
+    gap: 6px !important;
+  }
+  .brand__full-logo-img {
+    height: 56px !important;
+  }
+  .topbar__stay-btn {
+    padding: 7px 11px !important;
+    font-size: 12.5px !important;
+  }
+  .topbar__login-pill-btn {
+    padding: 7px 16px !important;
+    font-size: 13px !important;
+  }
+}
+
+/* 20.5 Tablet & Mobile (<= 1080px): Chuyển hoàn toàn sang Bottom Nav, Header gọn gàng */
+@media (max-width: 1080px) {
+  .desktop-nav--v2 {
+    display: none !important;
+  }
+  .bottom-nav {
+    display: flex !important;
+  }
+}
