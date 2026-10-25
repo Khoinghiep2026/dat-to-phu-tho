@@ -948,11 +948,111 @@ function formatAttractionInfo(
     }
   }
 
+  // 1.21. HANOI TOURISM & GATEWAY KNOWLEDGE HANDLER
+  // Hà Nội là cửa ngõ giao thông huyết mạch và là điểm xuất phát chính của du khách về Đất Tổ
+  const isAskingHanoi =
+    /\b(hà nội|ha noi|thủ đô|thu do)\b/i.test(lower) &&
+    !lower.includes("từ hà nội đi") &&
+    !lower.includes("hà nội đi") &&
+    !lower.includes("hà nội lên") &&
+    !lower.includes("hà nội về");
+
+  if (isAskingHanoi) {
+    const isFood = /ăn gì|món gì|đặc sản|quán ăn/i.test(lower);
+    if (isFood) {
+      return {
+        text:
+          `${greeting}nếu bạn đang ở **Hà Nội** và muốn khám phá ẩm thực Thủ đô, em xin gợi ý những món ngon trứ danh không thể bỏ qua:\n\n` +
+          `🍜 **1. Tinh hoa ẩm thực phố cổ Hà Nội:**\n` +
+          `• **Phở Hà Nội:** Phở Thìn (Lò Đúc), Phở Bát Đàn, Phở Gia Truyền 49 Bát Đàn.\n` +
+          `• **Bún chả:** Bún chả Hương Liên (bún chả Obama - Lê Văn Hưu), Bún chả Đắc Kim (Hàng Mành).\n` +
+          `• **Chả cá Lã Vọng:** Chả cá Thăng Long (Đường Thành) hoặc Chả cá Lã Vọng gốc (Chả Cá).\n` +
+          `• **Bún đậu mắm tôm:** Ngõ Gạch, ngõ Tràng Tiền hoặc Hàng Khay.\n` +
+          `• **Cà phê trứng & Kem:** Cà phê Giảng (Nguyễn Hữu Huân), Kem Tràng Tiền, Kem Thủy Tạ Hồ Gươm.\n\n` +
+          `🚗 **Gợi ý đổi gió ẩm thực cuối tuần:**\n` +
+          `Từ Hà Nội chỉ mất ~1 giờ chạy xe (60-70km), bạn có thể "đổi vị" với những đặc sản Đất Tổ cực kỳ độc đáo: **Thịt chua Thanh Sơn**, **Cá lăng sông Đà**, **Cá thính Cẩm Khê**, **Bánh tai Phú Thọ** và rau ngọn su su Tam Đảo! 🌿`,
+        options: [
+          { label: "🍲 Gợi ý đặc sản Phú Thọ", value: "ask_foods", icon: "🥢" },
+          { label: "🚗 Lịch trình Hà Nội - Đền Hùng (1 Ngày)", value: "plan_den_hung", icon: "🏛️" },
+          { label: "♨️ Hà Nội - Onsen Thanh Thủy (2N1Đ)", value: "plan_thanh_thuy", icon: "💆" },
+        ],
+        updatedSurvey: survey,
+      };
+    }
+
+    return {
+      text:
+        `${greeting}chào bạn! Nếu bạn đang tìm kiếm các **khu du lịch, điểm vui chơi và danh thắng nổi tiếng tại Hà Nội**, em xin gợi ý những điểm đến hấp dẫn và tiêu biểu nhất:\n\n` +
+        `🏛️ **1. Di tích Lịch sử & Văn hóa trung tâm Hà Nội:**\n` +
+        `• **Quần thể Hồ Gươm (Hồ Hoàn Kiếm):** Tháp Rùa, Đền Ngọc Sơn, Cầu Thê Húc, dạo bộ Phố Cổ 36 phố phường và phố đi bộ cuối tuần.\n` +
+        `• **Lăng Chủ tịch Hồ Chí Minh & Chùa Một Cột:** Biểu tượng thiêng liêng của Thủ đô, viếng Lăng Bác, nhà sàn và ao cá Bác Hồ.\n` +
+        `• **Văn Miếu – Quốc Tử Giám:** Trường đại học đầu tiên của Việt Nam, kiến trúc truyền thống cổ kính, tôn vinh tinh thần hiếu học.\n` +
+        `• **Hoàng Thành Thăng Long & Di tích Nhà tù Hỏa Lò:** Không gian lịch sử ngàn năm văn hiến và trải nghiệm tour đêm Hỏa Lò ấn tượng.\n\n` +
+        `🌿 **2. Các Khu du lịch Sinh thái & Ngoại thành Hà Nội:**\n` +
+        `• **Vườn Quốc gia Ba Vì:** Đồi thông xanh mát, Nhà kính xương rồng, phế tích nhà thờ Pháp cổ, đền Thượng trên đỉnh Tản Viên (rất gần Phú Thọ qua cầu Đồng Quang).\n` +
+        `• **Làng Cổ Đường Lâm (Sơn Tây):** Không gian làng quê Bắc Bộ xưa với cổng làng, cây đa, bến nước, nhà tường đá ong hàng trăm năm tuổi.\n` +
+        `• **Làng Gốm Bát Tràng (Gia Lâm):** Tự tay nặn vuốt gốm sứ và check-in Bảo tàng gốm Bát Tràng xoắn ốc độc đáo.\n` +
+        `• **Làng Văn hóa - Du lịch các Dân tộc Việt Nam (Đồng Mô):** Chiêm ngưỡng kiến trúc chùa Khmer, tháp Chăm và khám phá văn hóa 54 dân tộc.\n` +
+        `• **Khu du lịch Thiên Đường Bảo Sơn:** Công viên giải trí phức hợp với thủy cung, công viên nước, nông trại vui vẻ.\n\n` +
+        `🚗 **Gợi ý kết nối tour du lịch Đất Tổ từ Hà Nội:**\n` +
+        `Hà Nội là cửa ngõ kết nối giao thông huyết mạch, chỉ cách **Phú Thọ khoảng 60 - 80 km** (~1 giờ chạy xe êm thuận theo Đại lộ Thăng Long hoặc Cao tốc Nội Bài - Lào Cai). Rất nhiều gia đình và bạn trẻ Hà Nội thường chọn lịch trình 1 - 2 ngày cuối tuần kết hợp:\n` +
+        `• **Tuyến nghỉ dưỡng:** Hà Nội ➔ Dâng hương Đền Hùng ➔ Nghỉ dưỡng khoáng nóng Onsen Thanh Thủy (Lynn Times / Wyndham).\n` +
+        `• **Tuyến thiên nhiên & săn mây:** Hà Nội ➔ Đồi chè Long Cốc ➔ Vườn Quốc gia Xuân Sơn.\n` +
+        `• **Tuyến phố núi:** Hà Nội ➔ Tam Đảo & Thiền Viện Trúc Lâm Tây Thiên.`,
+      options: [
+        { label: "🚗 Lịch trình Hà Nội - Đền Hùng (1 Ngày)", value: "plan_den_hung", icon: "🏛️" },
+        { label: "♨️ Hà Nội - Onsen Thanh Thủy (2N1Đ)", value: "plan_thanh_thuy", icon: "💆" },
+        { label: "🍃 Hà Nội - Đồi chè Long Cốc (2N1Đ)", value: "plan_long_coc", icon: "📸" },
+        { label: "🌫️ Hà Nội - Tam Đảo phố núi (2N1Đ)", value: "plan_tam_dao", icon: "📍" },
+      ],
+      updatedSurvey: survey,
+    };
+  }
+
+  // 1.22. OUT-OF-PROVINCE DESTINATIONS QUERY (Đà Nẵng, Nha Trang, Phú Quốc, Sa Pa, Đà Lạt, Sài Gòn...)
+  const OTHER_PROVINCES: Record<string, { label: string; highlight: string; analogPhuTho: string; optionValue: string; optionLabel: string }> = {
+    "da nang": { label: "Đà Nẵng", highlight: "Bà Nà Hills, Bán đảo Sơn Trà, Cầu Rồng và biển Mỹ Khê", analogPhuTho: "Nếu thích trải nghiệm trên cao mây phủ như Bà Nà, bạn rất nên khám phá **Đỉnh mây Tam Đảo** hoặc **Đồi chè Long Cốc**!", optionValue: "plan_tam_dao", optionLabel: "🌫️ Lên tour Tam Đảo săn mây" },
+    "phu quoc": { label: "Phú Quốc", highlight: "Bãi Sao, Hòn Thơm, Grand World và hải sản đảo ngọc", analogPhuTho: "Nếu yêu thích không gian sông nước sinh thái và vui chơi công viên nước, mời bạn trải nghiệm **KDL Đảo Ngọc Xanh** hoặc **Hồ Thung Nai - Vịnh Hạ Long trên núi**!", optionValue: "plan_dao_ngoc_xanh", optionLabel: "🏝️ Khám phá KDL Đảo Ngọc Xanh" },
+    "nha trang": { label: "Nha Trang", highlight: "VinWonders, Tháp Bà Ponagar, tắm bùn khoáng và vịnh biển", analogPhuTho: "Nếu muốn tận hưởng ngâm tắm khoáng nóng và thư giãn spa chữa lành, **Suối khoáng nóng Radon Thanh Thủy** (Phú Thọ) hay **Khoáng nóng Kim Bôi** chính là thiên đường nghỉ dưỡng ngay gần bạn!", optionValue: "plan_thanh_thuy", optionLabel: "♨️ Tắm khoáng nóng Thanh Thủy" },
+    "sapa": { label: "Sa Pa", highlight: "Đỉnh Fansipan, thung lũng Mường Hoa, đèo Ô Quy Hồ", analogPhuTho: "Nếu muốn săn mây kỳ vĩ và ngắm những cung đường đồi núi Tây Bắc thơ mộng, tuyệt tác **Đồi chè Long Cốc** và **Vườn quốc gia Xuân Sơn** sẽ mang lại cho bạn những bức ảnh cực phẩm!", optionValue: "plan_long_coc", optionLabel: "🍃 Săn mây Đồi chè Long Cốc" },
+    "da lat": { label: "Đà Lạt", highlight: "Hồ Xuân Hương, Thung Lũng Tình Yêu, đồi chè Cầu Đất, cà phê mây", analogPhuTho: "Không gian mát lạnh quanh năm của **Tam Đảo** và đồi chè bát úp mờ ảo **Long Cốc** có nét thơ mộng rất tương đồng với Đà Lạt thu nhỏ của miền Bắc!", optionValue: "plan_tam_dao", optionLabel: "🌫️ Khám phá phố núi Tam Đảo" },
+    "ninh binh": { label: "Ninh Bình", highlight: "Tràng An, Tam Cốc - Bích Động, Cố đô Hoa Lư, Chùa Bái Đính", analogPhuTho: "Để chiêm bái các ngôi chùa cổ tự và tìm về cội nguồn dân tộc, **Quần thể di tích lịch sử Đền Hùng** và **Thiền viện Trúc Lâm Tây Thiên** là điểm đến tâm linh số 1!", optionValue: "plan_den_hung", optionLabel: "🏛️ Chiêm bái Đền Hùng" },
+    "ha long": { label: "Hạ Long", highlight: "Vịnh Hạ Long, du thuyền, hang Sửng Sốt, Sun World Bãi Cháy", analogPhuTho: "Bạn có thể trải nghiệm **Lòng hồ Thung Nai – Sông Đà**, nơi được mệnh danh là 'Vịnh Hạ Long trên núi' với hàng trăm đảo đá vôi nhấp nhô tuyệt đẹp!", optionValue: "plan_thung_nai", optionLabel: "⛵ Du ngoạn Hồ Thung Nai - Sông Đà" },
+    "sai gon": { label: "Sài Gòn (TP.HCM)", highlight: "Nhà thờ Đức Bà, Dinh Độc Lập, Chợ Bến Thành, Landmark 81", analogPhuTho: "Nếu bạn có chuyến công tác hoặc du lịch ra miền Bắc, hãy dành 1-2 ngày về thăm **Đất Tổ Phú Thọ** để dâng hương tưởng nhớ các Vua Hùng!", optionValue: "plan_den_hung", optionLabel: "🏛️ Lịch trình Đền Hùng 1 ngày" },
+    "tp hcm": { label: "TP. Hồ Chí Minh", highlight: "Nhà thờ Đức Bà, Dinh Độc Lập, Chợ Bến Thành, Landmark 81", analogPhuTho: "Nếu bạn có chuyến công tác hoặc du lịch ra miền Bắc, hãy dành 1-2 ngày về thăm **Đất Tổ Phú Thọ** để dâng hương tưởng nhớ các Vua Hùng!", optionValue: "plan_den_hung", optionLabel: "🏛️ Lịch trình Đền Hùng 1 ngày" },
+    "hue": { label: "Huế", highlight: "Đại Nội, lăng tẩm các vua Nguyễn, chùa Thiên Mụ, sông Hương", analogPhuTho: "Về du lịch di sản và cội nguồn lịch sử, **Khu di tích lịch sử Quốc gia đặc biệt Đền Hùng** chính là không gian linh thiêng bậc nhất của người con đất Việt!", optionValue: "plan_den_hung", optionLabel: "🏛️ Hành hương về Đền Hùng" },
+    "hoi an": { label: "Hội An", highlight: "Phố cổ Hội An, Chùa Cầu, thả hoa đăng sông Hoài, làng gốm Thanh Hà", analogPhuTho: "Nếu yêu thích nét cổ kính, bạn có thể ghé thăm **Làng cổ Hùng Lô** với đình cổ hơn 300 năm nghe Hát Xoan hoặc **Làng gốm cổ Hương Canh**!", optionValue: "plan_hung_lo", optionLabel: "🏮 Thăm Làng cổ & Đình Hùng Lô" },
+  };
+
+  const normForProvince = lower
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[đ]/g, "d");
+
+  const matchedProvKey = Object.keys(OTHER_PROVINCES).find((k) => normForProvince.includes(k));
+  if (matchedProvKey) {
+    const prov = OTHER_PROVINCES[matchedProvKey];
+    return {
+      text:
+        `${greeting}Dạ, em là **Trợ lý Du lịch Đất Tổ**, chuyên gia tư vấn chuyên sâu về các danh lam thắng cảnh, văn hóa cội nguồn của **Phú Thọ và 2 tuyến liên kết (Tam Đảo - Vĩnh Phúc & Mai Châu, Kim Bôi - Hòa Bình)**.\n\n` +
+        `Về điểm đến **${prov.label}**, đây là một nơi du lịch rất nổi tiếng với các điểm nhấn như: ${prov.highlight}.\n\n` +
+        `💡 ${prov.analogPhuTho}\n\n` +
+        `Bạn có muốn em tư vấn lịch trình hoặc gợi ý điểm đến tương ứng tại miền Đất Tổ & vùng lân cận không ạ? 🌿`,
+      options: [
+        { label: prov.optionLabel, value: prov.optionValue, icon: "✨" },
+        { label: "🏛️ Khám phá Đền Hùng", value: "plan_den_hung", icon: "🏛️" },
+        { label: "♨️ Khoáng nóng Thanh Thủy", value: "plan_thanh_thuy", icon: "💆" },
+        { label: "🍃 Đồi chè Long Cốc", value: "plan_long_coc", icon: "📸" },
+      ],
+      updatedSurvey: survey,
+    };
+  }
+
   // 1.25. INTERACTIVE CLARIFICATION DIALOG:
   // Khi người dùng hỏi tư vấn lịch trình/tour nhưng câu hỏi chưa rõ (thiếu số người, phương tiện, mức giá...)
   // AI sẽ chủ động hỏi lại lịch sự và cung cấp các nút bấm 1 chạm để cá nhân hoá lịch trình chuẩn xác nhất.
   const isTripConsultation =
-    /tư vấn|tu van|lịch trình|lich trinh|kế hoạch|ke hoach|gợi ý|goi y|tour|đi đâu|di dau|đi chơi|di choi|du lịch|du lich|phương án|phuong an|muốn đi|muon di|sắp đi|sap di|tổ chức|to chuc|khám phá/i.test(lower) ||
+    /tư vấn|tu van|lịch trình|lich trinh|kế hoạch|ke hoach|gợi ý|goi y|tour|đi đâu|di dau|đi chơi|di choi|phương án|phuong an|muốn đi|muon di|sắp đi|sap di|tổ chức|to chuc/i.test(lower) ||
     /2 ngày 1 đêm|2n1d|2n1đ|1 ngày|3 ngày 2 đêm|3n2d|cuối tuần/i.test(lower);
 
   const isSpecificLookups =

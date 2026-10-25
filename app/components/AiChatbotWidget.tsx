@@ -35,6 +35,8 @@ type ChatMessage = {
   options?: Array<{ label: string; value: string; icon?: string }>;
   itinerary?: GeneratedItinerary;
   isStreaming?: boolean;
+  isGemini?: boolean;
+  model?: string;
 };
 
 const initialSurveyState: AiSurveyState = {
@@ -68,6 +70,11 @@ export default function AiChatbotWidget({
   const [survey, setSurvey] = useState<AiSurveyState>(initialSurveyState);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [customApiKey, setCustomApiKey] = useState<string>("");
+  const [tempApiKey, setTempApiKey] = useState<string>("");
+  const [hasServerGemini, setHasServerGemini] = useState<boolean>(false);
+  const [serverModel, setServerModel] = useState<string>("gemini-3.8-flash");
+  const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const voiceAudioRef = useRef<HTMLAudioElement | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const prevAuthUserIdRef = useRef<string | null>(null);
@@ -90,6 +97,24 @@ export default function AiChatbotWidget({
         voiceAudioRef.current = null;
       }
     };
+  }, []);
+
+  // Check server-side Gemini configuration and load client custom API key
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const savedKey = localStorage.getItem("datto_gemini_api_key") || "";
+      setCustomApiKey(savedKey);
+      setTempApiKey(savedKey);
+    }
+    fetch("/api/chat")
+      .then((r) => r.json())
+      .then((d) => {
+        if (d?.hasEnvKey) {
+          setHasServerGemini(true);
+          if (d.model) setServerModel(d.model);
+        }
+      })
+      .catch(() => {});
   }, []);
 
   const togglePlayVoice = async (msgId: string, textContent?: string, audioUrl?: string) => {
@@ -469,8 +494,8 @@ export default function AiChatbotWidget({
   const surveyRef = useRef(survey);
   surveyRef.current = survey;
 
-  // Core Natural Language Processor with Smart Streaming Typewriter
-  const handleProcessInput = (text: string, overrideSurvey?: AiSurveyState) => {
+  // Core Natural Language Processor with Hybrid RAG Generative AI & Streaming
+  const handleProcessInput = async (text: string, overrideSurvey?: AiSurveyState) => {
     // If a previous stream is still typing, finalize it immediately
     if (streamingTimeoutRef.current) {
       clearTimeout(streamingTimeoutRef.current);
@@ -484,9 +509,17 @@ export default function AiChatbotWidget({
       );
     }
 
-    // Realistic multi-stage thinking simulation with enhanced thinking delay (extra 2-3s as requested)
+    const hasAiActive = hasServerGemini || Boolean(customApiKey);
     const isComplex = /lịch trình|tour|ngày|đêm|kế hoạch|gợi ý|đi đâu|phương án|chi phí|người|xe|ăn gì|tư vấn|du lịch|cuối tuần/i.test(text);
-    const thinkingStages = isComplex
+
+    const thinkingStages = hasAiActive
+      ? [
+          "✨ Trợ lý Đất Tổ đang kết nối trí tuệ nhân tạo Google Gemini...",
+          "🔍 Đang truy xuất cơ sở dữ liệu thực tế (RAG) Đất Tổ...",
+          "📍 Đang phân tích lộ trình, ẩm thực & cá nhân hoá nội dung...",
+          "✦ Đang hoàn thiện câu trả lời thông minh...",
+        ]
+      : isComplex
       ? [
           "🧠 Trợ lý AI đang đọc và phân tích ngữ cảnh yêu cầu...",
           "👥 Đang kiểm tra số lượng đoàn, phương tiện di chuyển & mức ngân sách...",
@@ -509,10 +542,7 @@ export default function AiChatbotWidget({
     }
 
     let stageIdx = 0;
-    // Enhanced latency: ~4.6s for complex trip planning, ~3.4s for general queries
-    const stageInterval = isComplex ? 920 : 1100;
-    const totalDelay = isComplex ? 4600 : 3400;
-
+    const stageInterval = hasAiActive ? 750 : (isComplex ? 920 : 1100);
     thinkingIntervalRef.current = setInterval(() => {
       stageIdx++;
       if (stageIdx < thinkingStages.length) {
@@ -520,95 +550,148 @@ export default function AiChatbotWidget({
       }
     }, stageInterval);
 
-    setTimeout(() => {
+    const activeSurvey = { ...(overrideSurvey || surveyRef.current) };
+    if (userPosition && !activeSurvey.userLocation) {
+      activeSurvey.userLocation = {
+        lat: userPosition.lat,
+        lng: userPosition.lng,
+        label: "Vị trí thiết bị của bạn",
+      };
+    }
+
+    let res: {
+      text: string;
+      options?: Array<{ label: string; value: string; icon?: string }>;
+      itinerary?: GeneratedItinerary;
+      updatedSurvey?: AiSurveyState;
+      isGemini?: boolean;
+      model?: string;
+    };
+
+    try {
+      const apiReq = fetch("/api/chat", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(customApiKey ? { "x-gemini-key": customApiKey } : {}),
+        },
+        body: JSON.stringify({
+          message: text,
+          history: messages.slice(-6).map((m) => ({ sender: m.sender, text: m.text })),
+          survey: activeSurvey,
+          userName: authUser?.name,
+          userPosition: activeSurvey.userLocation,
+          apiKey: customApiKey,
+        }),
+      });
+
+      // Min wait for natural feel (1.2s if AI active, else standard)
+      const minWaitMs = hasAiActive ? 1200 : (isComplex ? 2200 : 1600);
+      const [apiResponse] = await Promise.all([
+        apiReq,
+        new Promise((resolve) => setTimeout(resolve, minWaitMs)),
+      ]);
+
+      if (apiResponse.ok) {
+        const data = await apiResponse.json();
+        res = {
+          text: data.text,
+          options: data.options,
+          itinerary: data.itinerary,
+          updatedSurvey: data.updatedSurvey || activeSurvey,
+          isGemini: Boolean(data.isGemini),
+          model: data.model,
+        };
+      } else {
+        throw new Error("Chat API returned non-200");
+      }
+    } catch {
+      // Offline fallback
+      const localRes = processAiMessage(text, activeSurvey, authUser?.name);
+      res = {
+        ...localRes,
+        isGemini: false,
+      };
+    } finally {
       if (thinkingIntervalRef.current) {
         clearInterval(thinkingIntervalRef.current);
         thinkingIntervalRef.current = null;
       }
+    }
 
-      const activeSurvey = { ...(overrideSurvey || surveyRef.current) };
-      if (userPosition && !activeSurvey.userLocation) {
-        activeSurvey.userLocation = {
-          lat: userPosition.lat,
-          lng: userPosition.lng,
-          label: "Vị trí thiết bị của bạn",
-        };
-      }
-      const res = processAiMessage(text, activeSurvey, authUser?.name);
+    if (res.updatedSurvey) {
       setSurvey(res.updatedSurvey);
       surveyRef.current = res.updatedSurvey;
+    }
 
-      const fullText = res.text || "";
-      const msgId = `ai-${Date.now()}`;
-      currentStreamingMsgIdRef.current = msgId;
-      currentFullTextRef.current = fullText;
+    const fullText = res.text || "";
+    const msgId = `ai-${Date.now()}`;
+    currentStreamingMsgIdRef.current = msgId;
+    currentFullTextRef.current = fullText;
 
-      setIsThinking(false);
-      setIsStreaming(true);
+    setIsThinking(false);
+    setIsStreaming(true);
 
-      // Create initial message with empty text and isStreaming = true
-      const aiMsg: ChatMessage = {
-        id: msgId,
-        sender: "ai",
-        text: "",
-        timestamp: getTimeString(),
-        options: res.options,
-        itinerary: res.itinerary,
-        isStreaming: true,
-      };
+    const aiMsg: ChatMessage = {
+      id: msgId,
+      sender: "ai",
+      text: "",
+      timestamp: getTimeString(),
+      options: res.options,
+      itinerary: res.itinerary,
+      isStreaming: true,
+      isGemini: res.isGemini,
+      model: res.model,
+    };
 
-      setMessages((prev) => [...prev, aiMsg]);
+    setMessages((prev) => [...prev, aiMsg]);
 
-      // Smart streaming cadence: adaptive chunking with punctuation pause
-      let currentIndex = 0;
-      const totalLen = fullText.length;
-      const stepSize = totalLen > 1400 ? 5 : totalLen > 700 ? 3 : 2;
+    let currentIndex = 0;
+    const totalLen = fullText.length;
+    const stepSize = totalLen > 1400 ? 5 : totalLen > 700 ? 3 : 2;
 
-      const typeNextChunk = () => {
-        if (currentIndex < totalLen) {
-          currentIndex = Math.min(currentIndex + stepSize, totalLen);
-          const currentSub = fullText.slice(0, currentIndex);
+    const typeNextChunk = () => {
+      if (currentIndex < totalLen) {
+        currentIndex = Math.min(currentIndex + stepSize, totalLen);
+        const currentSub = fullText.slice(0, currentIndex);
 
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === msgId
-                ? { ...m, text: currentSub, isStreaming: currentIndex < totalLen }
-                : m
-            )
-          );
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId
+              ? { ...m, text: currentSub, isStreaming: currentIndex < totalLen }
+              : m
+          )
+        );
 
-          // Variable pause at punctuation for natural conversational flow
-          let delay = 16;
-          const lastChar = fullText[currentIndex - 1];
-          if (lastChar === "." || lastChar === "!" || lastChar === "?") {
-            delay = 55;
-          } else if (lastChar === "\n") {
-            delay = 35;
-          } else if (lastChar === "," || lastChar === ";" || lastChar === ":") {
-            delay = 25;
-          }
-
-          streamingTimeoutRef.current = setTimeout(typeNextChunk, delay);
-        } else {
-          // Finished typing all tokens
-          setMessages((prev) =>
-            prev.map((m) =>
-              m.id === msgId ? { ...m, text: fullText, isStreaming: false } : m
-            )
-          );
-          setIsStreaming(false);
-          currentStreamingMsgIdRef.current = null;
-          currentFullTextRef.current = "";
-          streamingTimeoutRef.current = null;
-
-          if (res.itinerary) {
-            showToast?.(`✦ AI đã lên xong lịch trình: ${res.itinerary.title}`);
-          }
+        let delay = 16;
+        const lastChar = fullText[currentIndex - 1];
+        if (lastChar === "." || lastChar === "!" || lastChar === "?") {
+          delay = 55;
+        } else if (lastChar === "\n") {
+          delay = 35;
+        } else if (lastChar === "," || lastChar === ";" || lastChar === ":") {
+          delay = 25;
         }
-      };
 
-      streamingTimeoutRef.current = setTimeout(typeNextChunk, 30);
-    }, totalDelay);
+        streamingTimeoutRef.current = setTimeout(typeNextChunk, delay);
+      } else {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === msgId ? { ...m, text: fullText, isStreaming: false } : m
+          )
+        );
+        setIsStreaming(false);
+        currentStreamingMsgIdRef.current = null;
+        currentFullTextRef.current = "";
+        streamingTimeoutRef.current = null;
+
+        if (res.itinerary) {
+          showToast?.(`✦ AI đã lên xong lịch trình: ${res.itinerary.title}`);
+        }
+      }
+    };
+
+    streamingTimeoutRef.current = setTimeout(typeNextChunk, 30);
   };
 
   // Handle user selecting an option chip
@@ -993,17 +1076,37 @@ export default function AiChatbotWidget({
               </div>
               <div className="ai-header-titles">
                 <div className="ai-header-name">
-                  {txt({ vi: "Trợ lý du lịch Đất Tổ", en: "Dat To Travel Assistant", zh: "富寿AI旅游助手", ko: "푸토 AI 여행 비서", ja: "フートAI観光アシスタント" })} <span className="ai-header-badge">AI 2.0</span>
+                  {txt({ vi: "Trợ lý du lịch Đất Tổ", en: "Dat To Travel Assistant", zh: "富寿AI旅游助手", ko: "푸토 AI 여행 비서", ja: "フートAI観光アシスタント" })}{" "}
+                  {(hasServerGemini || customApiKey) ? (
+                    <span className="ai-header-badge ai-header-badge--gemini" title="Trí tuệ nhân tạo tạo sinh Google Gemini">
+                      ✨ Gemini
+                    </span>
+                  ) : (
+                    <span className="ai-header-badge" title="Động cơ chuyên gia Đất Tổ (Offline)">
+                      AI 2.0
+                    </span>
+                  )}
                 </div>
                 <div className="ai-header-role">
                   {authUser
                     ? txt({ vi: `Đang hỗ trợ: ${authUser.name}`, en: `Assisting: ${authUser.name}`, zh: `正在为 ${authUser.name} 服务`, ko: `지원 중: ${authUser.name}`, ja: `ご案内中: ${authUser.name}` })
+                    : (hasServerGemini || customApiKey)
+                    ? "AI Tạo Sinh Gemini & Tri thức Đất Tổ"
                     : txt({ vi: "Tư vấn & Lên lịch trình Đất Tổ", en: "Trip Planner & Advisor", zh: "富寿行程规划顾问", ko: "푸토 여행 일정 기획 및 안내", ja: "フート旅程プランナー＆アドバイザー" })}
                 </div>
               </div>
             </div>
 
             <div className="ai-chat-header__actions">
+              <button
+                type="button"
+                className={`ai-header-btn ${isSettingsOpen ? "is-active" : ""}`}
+                onClick={() => setIsSettingsOpen(!isSettingsOpen)}
+                title="Cài đặt khóa AI Google Gemini"
+                aria-label="Cài đặt AI"
+              >
+                ⚙️
+              </button>
               <button
                 type="button"
                 className="ai-header-btn"
@@ -1038,6 +1141,109 @@ export default function AiChatbotWidget({
               </button>
             </div>
           </div>
+
+          {/* AI SETTINGS POPOVER */}
+          {isSettingsOpen && (
+            <div className="ai-settings-popover">
+              <div className="ai-settings-popover__header">
+                <span className="ai-settings-popover__title">⚙️ Cấu hình AI Tạo Sinh (Google Gemini)</span>
+                <button
+                  type="button"
+                  className="ai-settings-popover__close"
+                  onClick={() => setIsSettingsOpen(false)}
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="ai-settings-popover__body">
+                <div className="ai-settings-status-box">
+                  {hasServerGemini ? (
+                    <div className="ai-status-tag ai-status-tag--active">
+                      🟢 <b>Máy chủ:</b> Đã kết nối Gemini ({serverModel})
+                    </div>
+                  ) : customApiKey ? (
+                    <div className="ai-status-tag ai-status-tag--active">
+                      🟢 <b>Cá nhân:</b> Đang dùng API Key riêng của bạn
+                    </div>
+                  ) : (
+                    <div className="ai-status-tag ai-status-tag--offline">
+                      ⚪ <b>Chế độ hiện tại:</b> Động cơ phân tích Đất Tổ (Offline)
+                    </div>
+                  )}
+                </div>
+
+                <div className="ai-settings-field">
+                  <label htmlFor="gemini-key-input" className="ai-settings-label">
+                    Google Gemini API Key (tùy chọn cá nhân):
+                  </label>
+                  <input
+                    id="gemini-key-input"
+                    type="password"
+                    className="ai-settings-input"
+                    placeholder="Dán khóa AIzaSy... vào đây"
+                    value={tempApiKey}
+                    onChange={(e) => setTempApiKey(e.target.value)}
+                  />
+                  <small className="ai-settings-hint">
+                    Khóa được lưu cục bộ trên trình duyệt của bạn và bảo mật tuyệt đối.
+                  </small>
+                </div>
+
+                <div className="ai-settings-actions">
+                  <button
+                    type="button"
+                    className="ai-settings-save-btn"
+                    onClick={() => {
+                      const trimmed = tempApiKey.trim();
+                      setCustomApiKey(trimmed);
+                      if (typeof window !== "undefined") {
+                        if (trimmed) {
+                          localStorage.setItem("datto_gemini_api_key", trimmed);
+                          showToast?.("✦ Đã lưu Gemini API Key! Trợ lý đã kích hoạt AI Tạo Sinh.");
+                        } else {
+                          localStorage.removeItem("datto_gemini_api_key");
+                          showToast?.("Đã xóa khóa cá nhân.");
+                        }
+                      }
+                      setIsSettingsOpen(false);
+                    }}
+                  >
+                    💾 Lưu khóa
+                  </button>
+
+                  {customApiKey && (
+                    <button
+                      type="button"
+                      className="ai-settings-clear-btn"
+                      onClick={() => {
+                        setCustomApiKey("");
+                        setTempApiKey("");
+                        if (typeof window !== "undefined") {
+                          localStorage.removeItem("datto_gemini_api_key");
+                        }
+                        showToast?.("Đã xóa khóa cá nhân. Trở về chế độ mặc định.");
+                        setIsSettingsOpen(false);
+                      }}
+                    >
+                      Xóa
+                    </button>
+                  )}
+                </div>
+
+                <div className="ai-settings-links">
+                  <a
+                    href="https://aistudio.google.com/app/apikey"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="ai-get-key-link"
+                  >
+                    👉 Bấm vào đây để lấy Gemini API Key miễn phí (Google AI Studio) ↗
+                  </a>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* MESSAGES BODY */}
           <div className="ai-chat-messages">
@@ -1182,6 +1388,15 @@ export default function AiChatbotWidget({
                         ))}
                       </div>
                     )}
+                    {/* GEMINI ATTRIBUTION PILL */}
+                    {msg.sender === "ai" && !msg.isStreaming && msg.isGemini && (
+                      <div className="ai-gemini-attribution">
+                        <span className="ai-gemini-pill-tag">
+                          ✨ Phản hồi bởi Google Gemini AI ({msg.model || "Flash"})
+                        </span>
+                      </div>
+                    )}
+
                     {/* AUDIO NARRATION PILL (Sample Voice M4A) */}
                     {msg.sender === "ai" && !msg.isStreaming && msg.text && (
                       <div className="ai-voice-badge-row">
