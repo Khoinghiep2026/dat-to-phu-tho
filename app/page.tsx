@@ -6803,7 +6803,7 @@ export default function Home() {
                 <path d="M3 7v14M21 7v14M3 16h18M3 10h18M7 10v6M17 10v6" />
                 <path d="M7 4h10a2 2 0 0 1 2 2v1H5V6a2 2 0 0 1 2-2z" />
               </svg>
-              <span className="topbar__stay-btn-text">{t.detailBookRoom || "Đặt phòng lưu trú"}</span>
+              <span className="topbar__stay-btn-text">{currentLang === "vi" ? "Đặt phòng" : (t.detailBookRoom || "Stays")}</span>
               {bookedRoomsList.length > 0 && (
                 <span className="topbar__stay-badge">{bookedRoomsList.length}</span>
               )}
