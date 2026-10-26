@@ -349,7 +349,7 @@ export const places: Place[] = [
     category: "Nghỉ dưỡng & chữa lành",
     region: "Phú Thọ",
     district: "Thanh Thủy",
-    location: "Thị trấn Thanh Thủy, Huyện Thanh Thủy, Phú Thọ",
+    location: "Xã Thanh Thủy, tỉnh Phú Thọ",
     locationEn: "Thanh Thuy town, Phu Tho province",
     image: "/images/places/thanh-thuy.jpg",
     imageCredit: "Khu nghỉ dưỡng khoáng nóng Thanh Thủy",
@@ -640,7 +640,7 @@ export const places: Place[] = [
     category: "Núi rừng & sinh thái",
     region: "Phú Thọ",
     district: "Hạ Hòa",
-    location: "Thị trấn Hạ Hòa, Huyện Hạ Hòa, Phú Thọ",
+    location: "Xã Hạ Hòa, tỉnh Phú Thọ",
     locationEn: "Ha Hoa, Phu Tho",
     image: "/images/places/dam-ao-chau.jpg",
     imageCredit: "Cổng thông tin du lịch Phú Thọ",
@@ -710,7 +710,7 @@ export const places: Place[] = [
     category: "Nghỉ dưỡng & chữa lành",
     region: "Vĩnh Phúc",
     district: "Tam Đảo",
-    location: "Thị trấn Tam Đảo, Huyện Tam Đảo, Vĩnh Phúc",
+    location: "Xã Tam Đảo, tỉnh Phú Thọ",
     locationEn: "Tam Dao, Phu Tho",
     image: "/images/places/tam-dao.jpg",
     imageCredit: "Cổng thông tin du lịch Tam Đảo",
@@ -1030,7 +1030,7 @@ export const places: Place[] = [
     category: "Văn hóa & làng nghề",
     region: "Vĩnh Phúc",
     district: "Bình Xuyên",
-    location: "Thị trấn Hương Canh, Huyện Bình Xuyên, Vĩnh Phúc",
+    location: "Xã Bình Nguyên, tỉnh Phú Thọ",
     locationEn: "Bình Nguyên, Phu Tho",
     image: "/images/places/lang-gom-huong-canh.jpg",
     imageCredit: "Hội Làng nghề truyền thống gốm Hương Canh",
@@ -1184,7 +1184,7 @@ export const places: Place[] = [
     category: "Nghỉ dưỡng & chữa lành",
     region: "Hòa Bình",
     district: "Kim Bôi",
-    location: "Thị trấn Bo, Huyện Kim Bôi, Hòa Bình",
+    location: "Xã Bo, tỉnh Phú Thọ",
     locationEn: "Bo town, Phu Tho province",
     image: "/images/places/khoang-nong-kim-boi.jpg",
     imageCredit: "Khu du lịch sinh thái suối khoáng Kim Bôi",
@@ -3245,7 +3245,7 @@ export type ServiceItem = {
   id: string;
   icon: string;
   name: string;
-  type: "Trạm xăng" | "Bãi đỗ xe" | "Y tế" | "ATM" | "Trạm sạc EV" | "Cứu hộ" | "Tiện ích";
+  type: "Trạm xăng" | "Bãi đỗ xe" | "Y tế" | "ATM" | "Trạm sạc EV" | "Cứu hộ" | "Tiện ích" | "Ăn uống" | "Mua sắm";
   province: "Phú Thọ" | "Vĩnh Phúc" | "Hòa Bình";
   district: string;
   lat: number;
@@ -3257,6 +3257,15 @@ export type ServiceItem = {
 };
 
 export const comprehensiveServices: ServiceItem[] = [
+  // --- CƠ SỞ KINH DOANH DỊCH VỤ DU LỊCH ĐẠT TIÊU CHUẨN (ĐTC) PHỤC VỤ KHÁCH DU LỊCH ---
+  { id: "srv-dtc-1", icon: "♨", name: "Nhà hàng Sen Vàng (ĐTC Du Lịch)", type: "Ăn uống", province: "Phú Thọ", district: "TP. Việt Trì", lat: 21.321, lng: 105.395, note: "Cơ sở ăn uống đạt tiêu chuẩn phục vụ khách du lịch theo Quyết định Sở VHTTDL", address: "Phường Việt Trì, tỉnh Phú Thọ", phone: "0912123456" },
+  { id: "srv-dtc-2", icon: "🛒", name: "Siêu Thị Co.opmart Việt Trì (ĐTC Du Lịch)", type: "Mua sắm", province: "Phú Thọ", district: "TP. Việt Trì", lat: 21.325, lng: 105.398, note: "Mua sắm hàng tiêu dùng, đặc sản vùng miền đạt chuẩn phục vụ khách du lịch", address: "SN 1606A đường Hùng Vương, Phường Việt Trì, tỉnh Phú Thọ", phone: "02103992222" },
+  { id: "srv-dtc-3", icon: "🏢", name: "TTTM Vincom Plaza Việt Trì (ĐTC Du Lịch)", type: "Mua sắm", province: "Phú Thọ", district: "TP. Việt Trì", lat: 21.316, lng: 105.405, note: "Trung tâm thương mại, vui chơi giải trí & ẩm thực chuẩn quốc gia", address: "Đường Hùng Vương, Phường Thanh Miếu, tỉnh Phú Thọ", phone: "0963882989" },
+  { id: "srv-dtc-4", icon: "🏢", name: "TTTM Vincom+ Phú Thọ (ĐTC Du Lịch)", type: "Mua sắm", province: "Phú Thọ", district: "Thị xã Phú Thọ", lat: 21.402, lng: 105.228, note: "TTTM mua sắm và ẩm thực đạt chuẩn phục vụ du khách", address: "Phường Phú Thọ, tỉnh Phú Thọ", phone: "0963882989" },
+  { id: "srv-dtc-5", icon: "♨", name: "Nhà hàng Quyết Còi (ĐTC Du Lịch)", type: "Ăn uống", province: "Phú Thọ", district: "Xã Thanh Thủy", lat: 21.185, lng: 105.295, note: "Chuyên đặc sản cá sông Đà, gà đồi và ẩm thực khoáng nóng Thanh Thủy", address: "Khu 2, xã Thanh Thủy, tỉnh Phú Thọ", phone: "0977655098" },
+  { id: "srv-dtc-6", icon: "♨", name: "Nhà hàng Đức Hòa (ĐTC Du Lịch)", type: "Ăn uống", province: "Phú Thọ", district: "Xã Thanh Thủy", lat: 21.192, lng: 105.298, note: "Nhà hàng ẩm thực đạt chuẩn phục vụ du khách khoáng nóng Thanh Thủy", address: "Khu 6, xã Thanh Thủy, tỉnh Phú Thọ", phone: "0985655182" },
+  { id: "srv-dtc-7", icon: "♨", name: "Nhà hàng Phương Anh (ĐTC Du Lịch)", type: "Ăn uống", province: "Phú Thọ", district: "Xã Thanh Thủy", lat: 21.162, lng: 105.285, note: "Đặc sản ẩm thực vùng ven sông Đà đạt chuẩn du lịch", address: "Khu 3, xã Tu Vũ, tỉnh Phú Thọ", phone: "0349588821" },
+
   // --- PHÚ THỌ ---
   { id: "srv-pt-1", icon: "✚", name: "Bệnh viện Đa khoa tỉnh Phú Thọ", type: "Y tế", province: "Phú Thọ", district: "TP. Việt Trì", lat: 21.3215, lng: 105.3926, note: "Cấp cứu 24/7 · Tuyến đầu", address: "Đường Nguyễn Tất Thành, P. Tân Dân, TP. Việt Trì", phone: "02103955555" },
   { id: "srv-pt-2", icon: "⛽", name: "Trạm xăng Petrolimex Hùng Vương", type: "Trạm xăng", province: "Phú Thọ", district: "TP. Việt Trì", lat: 21.3341, lng: 105.3835, note: "Mở cửa 24/24 · Xăng A95, E5, Dầu DO", address: "Đại lộ Hùng Vương, TP. Việt Trì", phone: "02103846123" },
@@ -3294,3 +3303,5 @@ export const comprehensiveServices: ServiceItem[] = [
 ];
 
 export * from "./districtDirectory";
+
+export * from "./accommodationsDirectory";

@@ -1,6 +1,6 @@
 import { type AiSurveyState, type AiResponseResult } from "./aiChatEngine";
 import { buildItinerary, type GeneratedItinerary, getOfficialDocxItinerary, getOfficialLongCocXuanSonItinerary } from "./guidePlanner";
-import { places, type Place } from "@/data/travel";
+import { places, type Place, ACCOMMODATIONS_DATABASE } from "@/data/travel";
 import { getAllDistrictPlaces } from "./districtPlaceGenerator";
 import { findDistrictByQuery, DISTRICT_DATABASE, type DistrictInfo, type DistrictAttraction } from "@/data/districtDirectory";
 
@@ -1417,7 +1417,7 @@ function formatAttractionInfo(
     };
   }
 
-  // 6. HOTELS, RESORTS & HOMESTAYS
+  // 6. HOTELS, RESORTS & HOMESTAYS (Tích hợp Danh bạ 1.508 CSLT Phú Thọ, Vĩnh Phúc & Hòa Bình)
   if (
     lower.includes("nghỉ ở đâu") ||
     lower.includes("khách sạn") ||
@@ -1425,27 +1425,67 @@ function formatAttractionInfo(
     lower.includes("homestay") ||
     lower.includes("chỗ ở") ||
     lower.includes("thuê phòng") ||
-    lower.includes("nghỉ đêm")
+    lower.includes("nghỉ đêm") ||
+    lower.includes("cslt") ||
+    lower.includes("nhà nghỉ")
   ) {
+    // Check if user specified a district or province
+    const matchedDistrict = Object.values(DISTRICT_DATABASE).find((d) =>
+      lower.includes(d.id) ||
+      lower.includes(d.name.toLowerCase()) ||
+      lower.includes(d.oldName.toLowerCase()) ||
+      d.keywords.some((kw) => lower.includes(kw.toLowerCase()))
+    );
+
+    if (matchedDistrict) {
+      const topStays = ACCOMMODATIONS_DATABASE
+        .filter((it) => it.districtId === matchedDistrict.id)
+        .sort((a, b) => b.stars - a.stars || (b.rooms || 0) - (a.rooms || 0))
+        .slice(0, 5);
+      let distText = `${greeting}Dưới đây là **Các cơ sở lưu trú hàng đầu tại ${matchedDistrict.name} (${matchedDistrict.province})** trích xuất từ Danh bạ chính thức:\n\n`;
+      if (topStays.length > 0) {
+        topStays.forEach((s, idx) => {
+          distText += `🏨 **${idx + 1}. ${s.name}** ${s.stars > 0 ? `(★ ${s.rating})` : `(${s.type})`}\n`;
+          distText += `• 📍 Địa chỉ: ${s.address}\n`;
+          if (s.rooms) distText += `• 🛏️ Quy mô: ${s.rooms} phòng${s.beds ? ` · ${s.beds} giường` : ""}\n`;
+          if (s.phone) distText += `• 📞 Hotline đặt phòng: ${s.phone}\n`;
+          if (s.priceEstimate) distText += `• 💰 Giá tham khảo: ~${s.priceEstimate}\n`;
+          distText += `\n`;
+        });
+      } else if (matchedDistrict.recommendedStay) {
+        distText += `• Gợi ý: ${matchedDistrict.recommendedStay}\n\n`;
+      }
+      distText += `💡 *Quý khách có thể mở tab "Lịch trình" > "Danh bạ 1.508 Cơ sở lưu trú" hoặc mở mục "Đặt phòng" trên thanh công cụ để tra cứu chi tiết và gửi yêu cầu đặt phòng trực tiếp!*`;
+      return {
+        text: distText,
+        options: [
+          { label: `🏨 Xem lưu trú ${matchedDistrict.name}`, value: `stays_${matchedDistrict.id}`, icon: "🏨" },
+          { label: `🗺️ Lên lịch trình ${matchedDistrict.name}`, value: matchedDistrict.comboActionValue, icon: "⭐" },
+          { label: "📋 Danh bạ 1.508 CSLT toàn vùng", value: "directory_stays", icon: "📋" },
+        ],
+        updatedSurvey: survey,
+      };
+    }
+
     return {
       text:
-        `${greeting}Dưới đây là **Các địa chỉ lưu trú uy tín, chất lượng nhất** theo từng khu vực tại Phú Thọ:\n\n` +
-        `♨️ **1. Khu nghỉ dưỡng Khoáng nóng Thanh Thủy (Nghỉ dưỡng & Phục hồi):**\n` +
-        `• **Lynn Times Thanh Thủy (5 sao):** Quần thể shoptel khoáng nóng chuẩn Nhật, công viên Onsen Ohayo, xông hơi đá muối, phố đi bộ Hokkaido.\n` +
-        `• **Wyndham Lynn Times Thanh Thủy:** Khách sạn cao tầng khoáng nóng sang trọng.\n` +
-        `• **Vườn Vua Resort & Villas:** Khu nghỉ dưỡng sinh thái đầm sen Bạch Thủy thơ mộng.\n\n` +
-        `🏙️ **2. Khu vực TP. Việt Trì (Trung tâm & Gần Đền Hùng):**\n` +
-        `• **Khách sạn Mường Thanh Luxury Phú Thọ (5 sao):** Sang trọng, view công viên Văn Lang và hồ nước trung tâm.\n` +
-        `• **Khách sạn Sài Gòn Phú Thọ (4 sao):** Trung tâm đường Hùng Vương, dịch vụ chu đáo.\n` +
-        `• **X2 Vibe Việt Trì Hotel (4 sao):** Trẻ trung, hiện đại bên bờ hồ Văn Lang.\n\n` +
-        `🍃 **3. Khu vực Đồi chè Long Cốc & VQG Xuân Sơn (Trải nghiệm bản địa):**\n` +
-        `• **Homestay Tony Luận (Long Cốc):** Nhà sàn gỗ mộc mạc view nhìn thẳng ra ốc đảo chè bát úp, phục vụ trà Shan tuyết và ẩm thực Mường.\n` +
-        `• **Homestay Quỳnh Nga (Long Cốc):** Tiện nghi, thân thiện, dịch vụ thuê trang phục chụp ảnh.\n` +
-        `• **Homestay Bản Dù & Bản Cỏi (Xuân Sơn):** Trải nghiệm văn hóa người Dao Tiền, tắm suối mát và ăn gà chín cựa nướng than hoa.`,
+        `${greeting}Hệ thống du lịch Đất Tổ tích hợp **Danh bạ chính thức 1.508 cơ sở lưu trú** (Khách sạn 1-5 sao, Resort khoáng nóng, Homestay bản địa & Nhà nghỉ) trên 3 tỉnh Phú Thọ, Vĩnh Phúc và Hòa Bình:\n\n` +
+        `♨️ **1. Tỉnh Phú Thọ (387 cơ sở lưu trú):**\n` +
+        `• **Khoáng nóng Thanh Thủy:** Wyndham Lynn Times Thanh Thủy (5 sao), Vườn Vua Resort & Villas (5 sao), Tre Nguồn, BamBoo Resort.\n` +
+        `• **TP. Việt Trì:** Khách sạn Mường Thanh Luxury Phú Thọ (5 sao), Sài Gòn - Phú Thọ (4 sao), TRU By Hilton, SOJO Hotel Việt Trì.\n` +
+        `• **Đồi chè Long Cốc & VQG Xuân Sơn:** Homestay Tony Luận, Long Cốc Ecolodge, Homestay Bản Dù, Homestay Quỳnh Nga.\n\n` +
+        `⛰️ **2. Tỉnh Vĩnh Phúc (559 cơ sở lưu trú):**\n` +
+        `• **Tam Đảo:** Venus Hotel Tam Đảo (4 sao), Khách sạn Century (3 sao), Tam Đảo Gold Hotel (3 sao), Thế Giới Xanh (2 sao).\n` +
+        `• **Vĩnh Yên & Phúc Yên:** Westlake Hotel & Resort (5 sao), DIC Star (5 sao), Crowne Plaza Vĩnh Yên (5 sao), Flamingo Đại Lải Resort (5 sao), FLC Vĩnh Thịnh (5 sao).\n\n` +
+        `🌿 **3. Tỉnh Hòa Bình (562 cơ sở lưu trú):**\n` +
+        `• **Mai Châu:** Mai Châu Ecolodge (4 sao), Ba Khan Village Resort, Mai Châu Hideaway, Homestay Bản Lác 1 & 2.\n` +
+        `• **Kim Bôi & Lương Sơn:** Serena Resort Kim Bôi (4 sao), V-Resort Mường Động, Ivory Villas & Resort Lương Sơn, La Saveur De Hòa Bình.\n` +
+        `• **Thung Nai & TP. Hòa Bình:** Cối Xay Gió Thung Nai, SOJO Hotel Hòa Bình, Khách sạn Sakura, Grand Hotel.\n\n` +
+        `👉 *Quý khách có thể nhấn nút "Đặt phòng" ở góc phải màn hình hoặc mở tab "Lịch trình" > "Danh bạ 1.508 Cơ sở lưu trú" để tra cứu địa chỉ mới & cũ, lọc theo hạng sao và đặt phòng ngay.*`,
       options: [
-        { label: "♨️ Lên tour Lynn Times Thanh Thủy 2N1Đ", value: "tour_2n1d", icon: "⭐" },
-        { label: "🍃 Lên tour Homestay Long Cốc – Xuân Sơn", value: "tour_long_coc", icon: "🍃" },
-        { label: "🏛️ Tour Đền Hùng & Việt Trì", value: "plan_den_hung", icon: "🏛️" },
+        { label: "📋 Mở Danh bạ 1.508 Cơ sở lưu trú", value: "directory_stays", icon: "🏨" },
+        { label: "♨️ Tour khoáng nóng Thanh Thủy 2N1Đ", value: "tour_2n1d", icon: "⭐" },
+        { label: "🍃 Tour Homestay Long Cốc – Xuân Sơn", value: "tour_long_coc", icon: "🍃" },
       ],
       updatedSurvey: survey,
     };

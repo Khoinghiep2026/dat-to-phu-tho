@@ -742,6 +742,16 @@ export default function AiChatbotWidget({
       return;
     }
 
+    if (value === "directory_stays") {
+      handleProcessInput("Danh bạ cơ sở lưu trú 1.508 khách sạn homestay");
+      return;
+    }
+
+    if (value.startsWith("stays_")) {
+      handleProcessInput(`Cơ sở lưu trú và khách sạn tại ${label.replace("🏨 Xem lưu trú", "").trim()}`);
+      return;
+    }
+
     if (value.startsWith("plan_place_")) {
       handleProcessInput(`Lên lịch trình khám phá ${label.replace("✨ Lên lịch trình đến", "").trim()}`);
       return;
