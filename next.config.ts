@@ -4,7 +4,7 @@ const isGitHubPages = process.env.GITHUB_PAGES === "true";
 const basePath = process.env.NEXT_PUBLIC_BASE_PATH ?? "";
 
 const nextConfig: NextConfig = {
-  output: isGitHubPages ? "export" : "standalone",
+  output: isGitHubPages ? "export" : (process.env.VERCEL ? undefined : "standalone"),
   basePath: isGitHubPages ? basePath : "",
   assetPrefix: isGitHubPages ? basePath : "",
   trailingSlash: isGitHubPages,

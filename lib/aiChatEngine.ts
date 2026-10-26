@@ -1259,27 +1259,26 @@ export function processAiMessage(
   const trimmed = userText.trim();
   const lower = trimmed.toLowerCase();
 
-  // 1. GUARD: Out of scope check
+  // 1. SMART KNOWLEDGE BASE QUERY (GPT/Gemini-like deep knowledge & Q&A)
+  const smartResponse = handleSmartKnowledgeQuery(trimmed, currentSurvey, userName);
+  if (smartResponse) {
+    return smartResponse;
+  }
+
+  // 1.5. GUARD: Out of scope check (non-travel or completely unrelated topics)
   if (checkOutOfScope(trimmed)) {
     return {
       text:
         "Dạ, em là **Trợ lý du lịch Đất Tổ** chuyên hỗ trợ thông tin và lịch trình du lịch trong phạm vi **Phú Thọ và các tuyến liên kết** (Tam Đảo, Tây Thiên, Mai Châu, Hòa Bình).\n\n" +
-        "Yêu cầu của bạn hiện nằm ngoài phạm vi hoạt động của website. Để đảm bảo dữ liệu du lịch chính xác nhất và tránh quá tải hệ thống, em xin phép chỉ hỗ trợ các câu hỏi liên quan đến điểm đến, ẩm thực OCOP và lên lịch trình du lịch Đất Tổ & vùng phụ cận.\n\n" +
-        "Bạn có muốn em tư vấn hoặc lên lịch trình cho các điểm đến nổi tiếng như **Đền Hùng, Tam Đảo, Đồi chè Long Cốc, Thanh Sơn hay Suối khoáng nóng Thanh Thủy** không ạ? 🌿",
+        "Yêu cầu của bạn hiện nằm ngoài phạm vi du lịch & cội nguồn của hệ thống. Em xin phép tập trung tư vấn các điểm đến, ẩm thực đặc sản và hỗ trợ thiết kế lịch trình khám phá Đất Tổ cho bạn nhé! 🌿",
       options: [
-        { label: "🍃 Khám phá Thanh Sơn & Long Cốc", value: "plan_long_coc", icon: "📸" },
         { label: "🏛️ Khám phá Đền Hùng", value: "plan_den_hung", icon: "🏛️" },
-        { label: "🌫️ Lên lịch trình Tam Đảo", value: "plan_tam_dao", icon: "📍" },
         { label: "♨️ Tắm khoáng nóng Thanh Thủy", value: "plan_thanh_thuy", icon: "💆" },
+        { label: "🍃 Đồi chè Long Cốc", value: "plan_long_coc", icon: "📸" },
+        { label: "🌫️ Lên lịch trình Tam Đảo", value: "plan_tam_dao", icon: "📍" },
       ],
       updatedSurvey: currentSurvey,
     };
-  }
-
-  // 1.5. SMART KNOWLEDGE BASE QUERY (GPT/Gemini-like deep knowledge & Q&A)
-  const smartResponse = handleSmartKnowledgeQuery(trimmed, currentSurvey, userName);
-  if (smartResponse) {
-    return smartResponse;
   }
 
   // 2. Entity Extraction
