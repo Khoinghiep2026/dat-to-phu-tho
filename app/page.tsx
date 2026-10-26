@@ -6927,11 +6927,11 @@ export default function Home() {
                 </h1>
                 <p className="hero-panoramic__subtitle">
                   {txt({
-                    vi: "Khám phá Đất Tổ theo cách của bạn",
-                    en: "Discover the Ancestral Land your way",
-                    zh: "以您的专属方式探索祖地",
-                    ko: "당신만의 방식으로 웅왕 조상의 땅을 탐험하세요",
-                    ja: "あなたらしいスタイルで祖先の地を巡る",
+                    vi: "Chạm một lần, mở ra muôn hành trình",
+                    en: "One touch, endless journeys",
+                    zh: "一触即达，开启万千旅程",
+                    ko: "한 번의 터치로 펼쳐지는 무한한 여정",
+                    ja: "ワンタップで、広がる無限の旅",
                   })}
                 </p>
               </div>
