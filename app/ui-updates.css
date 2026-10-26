@@ -6265,3 +6265,26 @@ html, body {
   color: #3730a3;
 }
 
+/* ==========================================================================
+   TRIỆT TIÊU HOÀN TOÀN BOTTOM NAV TRÊN MÀN HÌNH MÁY TÍNH (DESKTOP / LAPTOP)
+   ========================================================================== */
+@media (min-width: 769px) {
+  .bottom-nav,
+  .mobile-only-bottom-nav,
+  nav.bottom-nav {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    opacity: 0 !important;
+    height: 0 !important;
+    max-height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    transform: translateY(100%) !important;
+  }
+}
+
+

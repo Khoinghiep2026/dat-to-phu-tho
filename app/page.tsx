@@ -3716,6 +3716,14 @@ export default function Home() {
   const [newMerchantPassword, setNewMerchantPassword] = useState("123456");
 
   // Cart & Checkout & Google Sheets Orders
+  const [isMobileView, setIsMobileView] = useState(false);
+  useEffect(() => {
+    const checkMobile = () => setIsMobileView(typeof window !== "undefined" && window.innerWidth <= 768);
+    checkMobile();
+    window.addEventListener("resize", checkMobile);
+    return () => window.removeEventListener("resize", checkMobile);
+  }, []);
+
   const [cart, setCart] = useState<CartLine[]>([]);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartDrawerTab, setCartDrawerTab] = useState<"cart" | "orders" | "stays">("cart");
@@ -3745,21 +3753,20 @@ export default function Home() {
     reloadBookedRooms();
   }, []);
 
-  // Sync selected cart lines: automatically check newly added items
+  // Sync selected cart lines: only clean up keys that were removed from cart, do NOT auto-select unchecked items
   useEffect(() => {
     setSelectedCartLines((prev) => {
-      const next = new Set(prev);
-      cart.forEach((c) => {
-        const key = `${c.dishId}-${c.sellerId}`;
-        if (!prev.has(key)) {
-          next.add(key);
+      const currentKeys = new Set(cart.map((c) => `${c.dishId}-${c.sellerId}`));
+      let changed = false;
+      const next = new Set<string>();
+      prev.forEach((k) => {
+        if (currentKeys.has(k)) {
+          next.add(k);
+        } else {
+          changed = true;
         }
       });
-      const currentKeys = new Set(cart.map((c) => `${c.dishId}-${c.sellerId}`));
-      Array.from(next).forEach((k) => {
-        if (!currentKeys.has(k)) next.delete(k);
-      });
-      return next;
+      return changed ? next : prev;
     });
   }, [cart]);
   const [orderList, setOrderList] = useState<any[]>([]);
@@ -5513,9 +5520,16 @@ export default function Home() {
   };
 
   const buyNow = (dish: FoodDish, seller: FoodSeller, qty: number = 1) => {
-    addToCart(dish, seller, qty);
+    const addQty = Math.max(1, qty);
+    const existing = cart.find((line) => line.dishId === dish.id && line.sellerId === seller.id);
+    const next = existing
+      ? cart.map((line) => line === existing ? { ...line, quantity: line.quantity + addQty } : line)
+      : [...cart, { dishId: dish.id, sellerId: seller.id, quantity: addQty }];
+    setCart(next);
+    window.localStorage.setItem("datto-cart", JSON.stringify(next));
     const key = `${dish.id}-${seller.id}`;
-    setSelectedCartLines((prev) => new Set([...prev, key]));
+    // CHỈ chọn duy nhất món vừa nhấn "Mua ngay", bỏ chọn các món khác
+    setSelectedCartLines(new Set([key]));
     setCartDrawerTab("cart");
     setCartOpen(true);
   };
@@ -9395,18 +9409,20 @@ export default function Home() {
         <span>{t.footerLink}</span>
       </footer>
 
-      {/* MOBILE BOTTOM NAVIGATION */}
-      <nav className="bottom-nav" aria-label={t.bottomNavAria}>
-        {navigation.map((item) => (
-          <button key={item.id} className={activeTab === item.id ? "is-active" : ""} onClick={() => setActiveTab(item.id)}>
-            <span className="bottom-nav__icon">{renderBottomNavIcon(item.id, activeTab === item.id)}</span>
-            <span className="bottom-nav__label">{t[item.id] || item.label}</span>
-            {item.id === "saved" && (favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
-              <b className="bottom-nav-dot" />
-            )}
-          </button>
-        ))}
-      </nav>
+      {/* MOBILE BOTTOM NAVIGATION - CHỈ RENDER TRÊN ĐIỆN THOẠI (<= 768px), TUYỆT ĐỐI KHÔNG XUẤT HIỆN TRÊN MÁY TÍNH */}
+      {isMobileView && (
+        <nav className="bottom-nav mobile-only-bottom-nav" aria-label={t.bottomNavAria}>
+          {navigation.map((item) => (
+            <button key={item.id} className={activeTab === item.id ? "is-active" : ""} onClick={() => setActiveTab(item.id)}>
+              <span className="bottom-nav__icon">{renderBottomNavIcon(item.id, activeTab === item.id)}</span>
+              <span className="bottom-nav__label">{t[item.id] || item.label}</span>
+              {item.id === "saved" && (favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
+                <b className="bottom-nav-dot" />
+              )}
+            </button>
+          ))}
+        </nav>
+      )}
 
       {/* PLACE DETAIL MODAL */}
       {selected && (
