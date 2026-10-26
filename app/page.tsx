@@ -6430,17 +6430,27 @@ export default function Home() {
   };
 
   const openBooking = (place: Place, stay: NearbyItem) => {
+    if (!authUser) {
+      setAuthModalOpen(true);
+      showToast("🔒 Vui lòng đăng nhập tài khoản để đặt phòng lưu trú!");
+      return;
+    }
     setBookingOffer({ place, stay });
-    setBookingName("");
+    setBookingName(authUser.name || "");
     setBookingCheckIn("");
     setBookingCheckOut("");
     setBookingGuests(2);
-    setBookingPhone("");
+    setBookingPhone(authUser.phone || "");
     setBookingNote("");
   };
 
   const submitBookingRequest = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (!authUser) {
+      setAuthModalOpen(true);
+      showToast("🔒 Vui lòng đăng nhập tài khoản để đặt phòng lưu trú!");
+      return;
+    }
     if (!bookingName.trim()) {
       showToast("Vui lòng nhập họ tên người đại diện nhận phòng");
       return;
@@ -6457,6 +6467,8 @@ export default function Home() {
     const stored = JSON.parse(window.localStorage.getItem("datto-booking-requests") ?? "[]") as any[];
     const request = {
       id: `DP-${String(stored.length + 1).padStart(6, "0")}`,
+      userId: authUser?.id,
+      userEmail: authUser?.email,
       customerName: bookingName.trim(),
       stay: bookingOffer.stay.name,
       stayAddress: bookingOffer.stay.address,
@@ -8785,9 +8797,9 @@ export default function Home() {
                                       className="button button--dark"
                                       style={{ fontSize: "11px", padding: "5px 10px", borderRadius: "6px", fontWeight: 700, whiteSpace: "nowrap" }}
                                       onClick={() => openBookingForAccommodation(item)}
-                                      title={`Gửi yêu cầu đặt phòng tại ${item.name}`}
+                                      title={authUser ? `Gửi yêu cầu đặt phòng tại ${item.name}` : "Vui lòng đăng nhập để đặt phòng"}
                                     >
-                                      🏨 Đặt phòng
+                                      {authUser ? "🏨 Đặt phòng" : "🔒 Đăng nhập để đặt"}
                                     </button>
                                   </td>
                                 </tr>
