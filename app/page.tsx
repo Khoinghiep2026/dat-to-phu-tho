@@ -89,15 +89,70 @@ const seasonMonths: Record<Exclude<SeasonFilter, "Tất cả" | "Đang hợp mù
 };
 const mapBounds = { minLat: 20.55, maxLat: 21.65, minLng: 104.85, maxLng: 105.75 };
 
-const navigation: { id: Tab; label: string; icon: string }[] = [
-  { id: "explore", label: "Khám phá", icon: "⌕" },
-  { id: "food", label: "Ẩm thực", icon: "🍲" },
-  { id: "trip", label: "Lịch trình", icon: "▤" },
-  { id: "vouchers", label: "Ưu đãi", icon: "🎟️" },
-  { id: "near", label: "Gần tôi", icon: "📍" },
-  { id: "saved", label: "Đã lưu", icon: "♡" },
-  { id: "profile", label: "Cá nhân", icon: "♙" },
+const navigation: { id: Tab; label: string }[] = [
+  { id: "explore", label: "Khám phá" },
+  { id: "food", label: "Ẩm thực" },
+  { id: "trip", label: "Lịch trình" },
+  { id: "vouchers", label: "Ưu đãi" },
+  { id: "near", label: "Gần tôi" },
+  { id: "saved", label: "Đã lưu" },
+  { id: "profile", label: "Cá nhân" },
 ];
+
+function renderBottomNavIcon(id: Tab, active: boolean) {
+  switch (id) {
+    case "explore":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" fill={active ? "currentColor" : "none"} />
+        </svg>
+      );
+    case "food":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 2v20M21 15V2a5 5 0 0 0-5 5v3a2 2 0 0 0 2 2h3zM3 2v7c0 1.1.9 2 2 2h4a2 2 0 0 0 2-2V2M7 2v20" />
+        </svg>
+      );
+    case "trip":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21" />
+          <line x1="9" y1="3" x2="9" y2="18" />
+          <line x1="15" y1="6" x2="15" y2="21" />
+        </svg>
+      );
+    case "vouchers":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M2 9a3 3 0 0 1 0 6v2a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-2a3 3 0 0 1 0-6V7a2 2 0 0 0-2-2H4a2 2 0 0 0-2 2Z" />
+          <path d="M13 5v2M13 17v2M13 11v2" />
+        </svg>
+      );
+    case "near":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+          <circle cx="12" cy="10" r="3" fill={active ? "currentColor" : "none"} />
+        </svg>
+      );
+    case "saved":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill={active ? "currentColor" : "none"} stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+        </svg>
+      );
+    case "profile":
+      return (
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? "2.3" : "1.8"} strokeLinecap="round" strokeLinejoin="round">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
+          <circle cx="12" cy="7" r="4" fill={active ? "currentColor" : "none"} />
+        </svg>
+      );
+    default:
+      return null;
+  }
+}
 
 function haversine(lat1: number, lon1: number, lat2: number, lon2: number) {
   const toRad = (value: number) => (value * Math.PI) / 180;
@@ -9344,7 +9399,8 @@ export default function Home() {
       <nav className="bottom-nav" aria-label={t.bottomNavAria}>
         {navigation.map((item) => (
           <button key={item.id} className={activeTab === item.id ? "is-active" : ""} onClick={() => setActiveTab(item.id)}>
-            <span>{item.icon}</span>{t[item.id] || item.label}
+            <span className="bottom-nav__icon">{renderBottomNavIcon(item.id, activeTab === item.id)}</span>
+            <span className="bottom-nav__label">{t[item.id] || item.label}</span>
             {item.id === "saved" && (favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
               <b className="bottom-nav-dot" />
             )}
