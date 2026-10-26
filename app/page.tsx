@@ -5507,6 +5507,11 @@ export default function Home() {
   };
 
   const addToCart = (dish: FoodDish, seller: FoodSeller, qty: number = 1) => {
+    if (!authUser) {
+      setAuthModalOpen(true);
+      showToast("🔒 Vui lòng đăng nhập tài khoản để đặt hàng đặc sản!");
+      return;
+    }
     const addQty = Math.max(1, qty);
     const existing = cart.find((line) => line.dishId === dish.id && line.sellerId === seller.id);
     const next = existing
@@ -5520,6 +5525,11 @@ export default function Home() {
   };
 
   const buyNow = (dish: FoodDish, seller: FoodSeller, qty: number = 1) => {
+    if (!authUser) {
+      setAuthModalOpen(true);
+      showToast("🔒 Vui lòng đăng nhập tài khoản để đặt hàng đặc sản!");
+      return;
+    }
     const addQty = Math.max(1, qty);
     const existing = cart.find((line) => line.dishId === dish.id && line.sellerId === seller.id);
     const next = existing
@@ -6061,6 +6071,11 @@ export default function Home() {
   };
 
   const reorderItems = (order: any) => {
+    if (!authUser) {
+      setAuthModalOpen(true);
+      showToast("🔒 Vui lòng đăng nhập tài khoản để đặt hàng đặc sản!");
+      return;
+    }
     if (!order.items || !order.items.length) return;
     let addedCount = 0;
     order.items.forEach((it: any) => {
@@ -6664,39 +6679,55 @@ export default function Home() {
                 <small>/{seller.unit}</small>
               </div>
               <div className="seller-card__order-controls">
-                <div className="seller-qty-stepper">
+                {authUser ? (
+                  <>
+                    <div className="seller-qty-stepper">
+                      <button
+                        type="button"
+                        onClick={() => updateSellerQty(seller.id, -1)}
+                        aria-label="Giảm số lượng"
+                      >
+                        −
+                      </button>
+                      <span className="seller-qty-val">{sellerQty[seller.id] || 1}</span>
+                      <button
+                        type="button"
+                        onClick={() => updateSellerQty(seller.id, 1)}
+                        aria-label="Tăng số lượng"
+                      >
+                        ＋
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      className="seller-add-btn"
+                      onClick={() => addToCart(dish, seller, sellerQty[seller.id] || 1)}
+                      title="Thêm món này vào giỏ hàng"
+                    >
+                      {t.addToCartBtn}
+                    </button>
+                    <button
+                      type="button"
+                      className="seller-buynow-btn"
+                      onClick={() => buyNow(dish, seller, sellerQty[seller.id] || 1)}
+                      title="Mua ngay và chuyển đến giỏ hàng"
+                    >
+                      ⚡ Mua ngay
+                    </button>
+                  </>
+                ) : (
                   <button
                     type="button"
-                    onClick={() => updateSellerQty(seller.id, -1)}
-                    aria-label="Giảm số lượng"
+                    className="seller-login-to-order-btn"
+                    onClick={() => {
+                      setAuthModalOpen(true);
+                      showToast("🔒 Vui lòng đăng nhập tài khoản để đặt hàng đặc sản!");
+                    }}
+                    title="Đăng nhập để đặt hàng đặc sản này"
                   >
-                    −
+                    🔒 {txt({ vi: "Đăng nhập để đặt hàng", en: "Log in to order", zh: "登录以订购", ko: "주문하려면 로그인", ja: "注文するにはログイン" })}
                   </button>
-                  <span className="seller-qty-val">{sellerQty[seller.id] || 1}</span>
-                  <button
-                    type="button"
-                    onClick={() => updateSellerQty(seller.id, 1)}
-                    aria-label="Tăng số lượng"
-                  >
-                    ＋
-                  </button>
-                </div>
-                <button
-                  type="button"
-                  className="seller-add-btn"
-                  onClick={() => addToCart(dish, seller, sellerQty[seller.id] || 1)}
-                  title="Thêm món này vào giỏ hàng"
-                >
-                  {t.addToCartBtn}
-                </button>
-                <button
-                  type="button"
-                  className="seller-buynow-btn"
-                  onClick={() => buyNow(dish, seller, sellerQty[seller.id] || 1)}
-                  title="Mua ngay và chuyển đến giỏ hàng"
-                >
-                  ⚡ Mua ngay
-                </button>
+                )}
               </div>
             </div>
             <div className="seller-card__links">
