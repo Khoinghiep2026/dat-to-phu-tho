@@ -6674,7 +6674,7 @@ export default function Home() {
               }, 120);
             }}
           >
-            🏨 {txt({ vi: `Lưu trú (${ACCOMMODATIONS_DATABASE.length})`, en: `Stays (${ACCOMMODATIONS_DATABASE.length})`, zh: `住宿 (${ACCOMMODATIONS_DATABASE.length})`, ko: `숙소 (${ACCOMMODATIONS_DATABASE.length})`, ja: `宿泊 (${ACCOMMODATIONS_DATABASE.length})` })}
+            {txt({ vi: "Lưu trú", en: "Stays", zh: "住宿", ko: "숙소", ja: "宿泊" })}
           </button>
           <button className={activeTab === "vouchers" ? "is-active" : ""} onClick={() => setActiveTab("vouchers")}>
             {t.vouchers || "Ưu đãi"}
