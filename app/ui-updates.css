@@ -5338,44 +5338,72 @@ html, body {
 }
 
 /* ==========================================================================
-   20. KHẮC PHỤC TRIỆT ĐỂ LỖI XUỐNG DÒNG TRÊN HEADER / TOPBAR V2
+   20. NÂNG CẤP TOÀN DIỆN THANH ĐIỀU HƯỚNG HEADER (LUXURY MODERN NAVBAR)
    ========================================================================== */
 
-/* 20.1 Chống gãy dòng (nowrap) tuyệt đối trên toàn bộ thanh Header Topbar */
+/* 20.1 Header Container: Kính mờ siêu sang trọng, độ cao chuẩn 72px */
 .topbar--v2 {
   display: flex !important;
   align-items: center !important;
   justify-content: space-between !important;
   flex-wrap: nowrap !important;
-  gap: clamp(8px, 1.2vw, 20px) !important;
-  min-height: 68px !important;
-  padding: 0 clamp(12px, 2vw, 36px) !important;
-  overflow-x: visible !important;
+  gap: clamp(10px, 1.4vw, 24px) !important;
+  height: 72px !important;
+  min-height: 72px !important;
+  max-height: 72px !important;
+  padding: 0 clamp(16px, 2.5vw, 40px) !important;
+  background: rgba(255, 255, 255, 0.88) !important;
+  backdrop-filter: blur(20px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(180%) !important;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.8) !important;
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.04), 0 1px 3px rgba(15, 23, 42, 0.02) !important;
+  position: sticky !important;
+  top: 0 !important;
+  z-index: 100 !important;
   box-sizing: border-box !important;
   width: 100% !important;
   max-width: 100vw !important;
 }
 
+/* 20.2 Brand Logo: Tinh tế, vừa vặn, hiệu ứng rê chuột mượt */
 .brand--v2 {
   flex-shrink: 0 !important;
-  white-space: nowrap !important;
+  display: flex !important;
+  align-items: center !important;
+  background: none !important;
+  border: 0 !important;
+  padding: 0 !important;
+  cursor: pointer !important;
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.brand--v2:hover {
+  transform: scale(1.02) !important;
 }
 
 .brand__full-logo-img {
   flex-shrink: 0 !important;
-  height: clamp(46px, 3.8vw, 62px) !important;
+  height: 52px !important;
+  max-height: 54px !important;
   width: auto !important;
   object-fit: contain !important;
+  display: block !important;
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.03)) !important;
 }
 
-/* 20.2 Menu điều hướng chính trên Desktop (Desktop Nav) */
+/* 20.3 Menu điều hướng chính: Thiết kế dạng Floating Capsule cao cấp */
 .desktop-nav--v2 {
   display: flex !important;
   align-items: center !important;
   flex-wrap: nowrap !important;
   flex-shrink: 0 !important;
-  gap: clamp(6px, 1.1vw, 20px) !important;
+  gap: 3px !important;
   white-space: nowrap !important;
+  background: rgba(241, 245, 249, 0.75) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 9999px !important;
+  padding: 4px !important;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.03) !important;
 }
 
 .desktop-nav--v2 button {
@@ -5383,93 +5411,255 @@ html, body {
   flex-shrink: 0 !important;
   word-break: keep-all !important;
   overflow-wrap: normal !important;
-  font-size: clamp(12.5px, 0.9vw, 14.5px) !important;
-  padding: 6px clamp(6px, 0.6vw, 10px) !important;
+  font-size: 13.5px !important;
+  font-weight: 500 !important;
+  color: #475569 !important;
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 9999px !important;
+  padding: 7px clamp(10px, 0.9vw, 15px) !important;
   line-height: 1.2 !important;
   display: inline-flex !important;
   align-items: center !important;
+  gap: 5px !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.nav-near-btn {
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
-  word-break: keep-all !important;
+.desktop-nav--v2 button:hover {
+  color: #0f172a !important;
+  background: rgba(255, 255, 255, 0.75) !important;
+}
+
+/* Tab đang kích hoạt: Nổi bật dạng Pill trắng tinh khôi, bóng đổ dịu mắt */
+.desktop-nav--v2 button.is-active {
+  background: #ffffff !important;
+  color: #1b4332 !important;
+  font-weight: 700 !important;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.08), 0 1px 2px rgba(15, 23, 42, 0.04) !important;
 }
 
 .nav-near-btn .nav-near-dot {
-  margin-right: 2px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  color: #e11d48 !important;
 }
 
-/* 20.3 Cụm nút hành động bên phải (Top Actions) */
+/* 20.4 Cụm thao tác bên phải (Right Actions Cluster) */
 .topbar__actions {
   display: flex !important;
   align-items: center !important;
   flex-wrap: nowrap !important;
   flex-shrink: 0 !important;
   margin-left: auto !important;
-  gap: clamp(5px, 0.7vw, 10px) !important;
+  gap: 6px !important;
   white-space: nowrap !important;
 }
 
-/* Widget Thời tiết */
+.topbar__actions-group {
+  display: flex !important;
+  align-items: center !important;
+  flex-wrap: nowrap !important;
+  gap: 6px !important;
+}
+
+/* Đường phân cách mảnh thanh lịch giữa các nhóm */
+.topbar__divider {
+  width: 1px !important;
+  height: 22px !important;
+  background: rgba(226, 232, 240, 0.9) !important;
+  margin: 0 3px !important;
+  flex-shrink: 0 !important;
+  display: inline-block !important;
+}
+
+/* 20.5 Nhóm tiện ích: Chọn Ngôn ngữ & Thời tiết */
+.lang-pill-btn,
 .weather-pill {
   display: inline-flex !important;
   align-items: center !important;
-  gap: 5px !important;
+  gap: 6px !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
-  padding: 5px 9px !important;
-  border-radius: 999px !important;
-  background: rgba(245, 243, 237, 0.85) !important;
-  border: 1px solid rgba(212, 175, 55, 0.25) !important;
+  height: 38px !important;
+  padding: 0 12px !important;
+  border-radius: 9999px !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  cursor: pointer !important;
+  box-sizing: border-box !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.weather-pill > span {
-  font-size: 16px !important;
+.lang-pill-btn:hover,
+.weather-pill:hover {
+  background: #ffffff !important;
+  border-color: #cbd5e1 !important;
+  box-shadow: 0 3px 10px rgba(15, 23, 42, 0.06) !important;
+  transform: translateY(-1px) !important;
+}
+
+.lang-pill-flag {
+  font-size: 15px !important;
   line-height: 1 !important;
-  margin: 0 !important;
+}
+
+.lang-pill-code {
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.04em !important;
+  color: #1e293b !important;
+}
+
+.lang-pill-chevron {
+  color: #94a3b8 !important;
+  transition: transform 0.2s ease !important;
+}
+
+.weather-pill-icon {
+  flex-shrink: 0 !important;
 }
 
 .weather-pill b {
   font-size: 13px !important;
-  white-space: nowrap !important;
+  font-weight: 700 !important;
+  color: #1e293b !important;
   line-height: 1 !important;
+  white-space: nowrap !important;
 }
 
 .weather-pill small {
-  font-size: 9.5px !important;
-  white-space: nowrap !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+  color: #64748b !important;
   text-transform: uppercase !important;
   letter-spacing: 0.04em !important;
   line-height: 1 !important;
-  display: inline !important;
 }
 
-/* Nút Chọn Ngôn ngữ */
+/* Menu thả ngôn ngữ chuẩn sang xịn */
 .i18n-dropdown-container {
+  position: relative !important;
   flex-shrink: 0 !important;
 }
 
-.lang-pill-btn {
-  white-space: nowrap !important;
-  flex-shrink: 0 !important;
-  height: 34px !important;
-  padding: 0 8px !important;
-  font-size: 12.5px !important;
+.i18n-dropdown-menu {
+  position: absolute !important;
+  top: calc(100% + 8px) !important;
+  right: 0 !important;
+  z-index: 220 !important;
+  min-width: 180px !important;
+  background: rgba(255, 255, 255, 0.98) !important;
+  backdrop-filter: blur(16px) !important;
+  -webkit-backdrop-filter: blur(16px) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
+  border-radius: 14px !important;
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.12), 0 4px 12px rgba(15, 23, 42, 0.06) !important;
+  padding: 6px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  animation: fadeInDown 0.18s ease-out !important;
 }
 
-/* Nút Yêu thích & Giỏ hàng */
+.i18n-dropdown-item {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  padding: 8px 12px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #334155 !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  text-align: left !important;
+  cursor: pointer !important;
+  transition: all 0.15s ease !important;
+}
+
+.i18n-dropdown-item:hover {
+  background: #f1f5f9 !important;
+  color: #0f172a !important;
+}
+
+.i18n-dropdown-item.is-selected {
+  background: #f0fdf4 !important;
+  color: #166534 !important;
+  font-weight: 700 !important;
+}
+
+.i18n-check {
+  color: #166534 !important;
+  font-weight: 800 !important;
+}
+
+/* 20.6 Nút Yêu thích & Giỏ hàng (Quick Circle Icon Buttons) */
 .topbar__heart-btn,
 .topbar__cart-btn {
   flex-shrink: 0 !important;
-  width: 36px !important;
-  height: 36px !important;
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 50% !important;
+  background: rgba(248, 250, 252, 0.85) !important;
+  border: 1px solid rgba(226, 232, 240, 0.9) !important;
   display: inline-flex !important;
   align-items: center !important;
   justify-content: center !important;
+  color: #475569 !important;
+  position: relative !important;
+  cursor: pointer !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-/* Nút Đặt phòng lưu trú */
+.topbar__heart-btn:hover {
+  background: #fff1f2 !important;
+  color: #e11d48 !important;
+  border-color: #fecdd3 !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(225, 29, 72, 0.15) !important;
+}
+
+.topbar__cart-btn:hover {
+  background: #fffbeb !important;
+  color: #d97706 !important;
+  border-color: #fde68a !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 12px rgba(217, 119, 6, 0.15) !important;
+}
+
+.topbar__heart-badge,
+.topbar__cart-badge {
+  position: absolute !important;
+  top: -3px !important;
+  right: -3px !important;
+  min-width: 17px !important;
+  height: 17px !important;
+  border-radius: 9999px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  color: #ffffff !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 3px !important;
+  border: 2px solid #ffffff !important;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.12) !important;
+  line-height: 1 !important;
+}
+
+.topbar__heart-badge {
+  background: #e11d48 !important;
+}
+
+.topbar__cart-badge {
+  background: #d97706 !important;
+}
+
+/* 20.7 Nút Đặt phòng lưu trú (VIP Concierge Capsule) */
 .topbar__stay-btn {
   display: inline-flex !important;
   align-items: center !important;
@@ -5477,22 +5667,50 @@ html, body {
   flex-wrap: nowrap !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
-  word-break: keep-all !important;
-  padding: 6px 10px !important;
-  font-size: 12.5px !important;
-  gap: 5px !important;
-  line-height: 1.2 !important;
-  height: 36px !important;
-  border-radius: 999px !important;
+  height: 38px !important;
+  padding: 0 14px !important;
+  border-radius: 9999px !important;
+  background: linear-gradient(135deg, #fffbeb 0%, #fef3c7 100%) !important;
+  border: 1px solid rgba(217, 119, 6, 0.3) !important;
+  color: #92400e !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  gap: 6px !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 6px rgba(217, 119, 6, 0.08) !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.topbar__stay-btn:hover {
+  background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%) !important;
+  color: #78350f !important;
+  border-color: rgba(217, 119, 6, 0.45) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 14px rgba(217, 119, 6, 0.2) !important;
 }
 
 .topbar__stay-btn-text {
   white-space: nowrap !important;
   display: inline-block !important;
-  word-break: keep-all !important;
 }
 
-/* Nút Đăng nhập dạng Viên thuốc - Luôn ưu tiên hiển thị rõ ràng */
+.topbar__stay-badge {
+  background: #b91c1c !important;
+  color: #ffffff !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  min-width: 17px !important;
+  height: 17px !important;
+  border-radius: 9999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  padding: 0 4px !important;
+  border: 1.5px solid #ffffff !important;
+  margin-left: 2px !important;
+}
+
+/* 20.8 Nút Đăng nhập / Tài khoản (Heritage Forest Emerald Button) */
 .topbar__login-pill-btn {
   display: inline-flex !important;
   align-items: center !important;
@@ -5500,80 +5718,129 @@ html, body {
   flex-wrap: nowrap !important;
   white-space: nowrap !important;
   flex-shrink: 0 !important;
-  word-break: keep-all !important;
-  padding: 7px clamp(12px, 1.1vw, 20px) !important;
-  font-size: clamp(12.5px, 0.85vw, 13.5px) !important;
-  line-height: 1.2 !important;
-  height: 36px !important;
-  background: #1b4332 !important;
-  color: #ffffff !important;
+  height: 38px !important;
+  padding: 0 18px !important;
   border-radius: 9999px !important;
+  border: 0 !important;
+  background: linear-gradient(135deg, #1b4332 0%, #2d6a4f 100%) !important;
+  color: #ffffff !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  gap: 7px !important;
   box-shadow: 0 3px 12px rgba(27, 67, 50, 0.25) !important;
   cursor: pointer !important;
-  order: 99 !important;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
 }
 
-.topbar__login-pill-btn span {
-  white-space: nowrap !important;
-  word-break: keep-all !important;
+.topbar__login-pill-btn:hover {
+  background: linear-gradient(135deg, #143527 0%, #1b4332 100%) !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 6px 18px rgba(27, 67, 50, 0.35) !important;
 }
 
-/* 20.4 Điều chỉnh mượt mà trên Màn hình máy tính & Laptop (1141px - 1440px) */
-@media (max-width: 1440px) {
+.topbar__user-label {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 7px !important;
+}
+
+.topbar__user-avatar {
+  width: 22px !important;
+  height: 22px !important;
+  border-radius: 50% !important;
+  background: rgba(255, 255, 255, 0.25) !important;
+  display: grid !important;
+  place-items: center !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+/* 20.9 Responsive mượt mà và thông minh */
+@media (max-width: 1400px) {
   .topbar--v2 {
-    padding: 0 16px !important;
-    gap: 10px !important;
-  }
-  .desktop-nav--v2 {
-    gap: 8px !important;
+    padding: 0 20px !important;
+    gap: 12px !important;
   }
   .desktop-nav--v2 button {
-    padding: 5px 7px !important;
+    padding: 6px 11px !important;
     font-size: 13px !important;
   }
   .topbar__actions {
-    gap: 5px !important;
+    gap: 4px !important;
   }
-  /* Thu gọn chữ 'Đặt phòng' thành icon 🏨 trên màn hình dưới 1440px để nhường chỗ cho Đăng nhập */
+  .topbar__stay-btn {
+    padding: 0 11px !important;
+  }
+}
+
+@media (max-width: 1240px) {
+  .weather-pill small {
+    display: none !important;
+  }
   .topbar__stay-btn-text {
     display: none !important;
   }
   .topbar__stay-btn {
-    width: 36px !important;
-    height: 36px !important;
+    width: 38px !important;
+    height: 38px !important;
     padding: 0 !important;
     border-radius: 50% !important;
-  }
-}
-
-@media (max-width: 1280px) {
-  .weather-pill small {
-    display: none !important;
-  }
-  .weather-pill {
-    padding: 4px 7px !important;
   }
   .brand__full-logo-img {
     height: 48px !important;
   }
-  .topbar__login-pill-btn {
-    padding: 6px 12px !important;
-    font-size: 12.5px !important;
-  }
 }
 
-@media (max-width: 1180px) {
-  .weather-pill {
+@media (max-width: 1100px) {
+  .topbar__divider {
     display: none !important;
   }
+  .topbar__login-pill-btn {
+    padding: 0 14px !important;
+  }
 }
 
-/* 20.5 Tablet & Mobile (<= 1140px): Chuyển hoàn toàn sang Bottom Nav, Header siêu thoáng */
-@media (max-width: 1140px) {
+/* Màn hình Tablet & Mobile (<= 1024px): Ẩn Desktop Nav chuyển sang Bottom Nav, Header siêu thoáng */
+@media (max-width: 1024px) {
   .desktop-nav--v2 {
     display: none !important;
   }
   .bottom-nav {
     display: flex !important;
+  }
+  .weather-pill {
+    padding: 0 8px !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar--v2 {
+    height: 64px !important;
+    min-height: 64px !important;
+    padding: 0 12px !important;
+  }
+  .brand__full-logo-img {
+    height: 42px !important;
+  }
+  .weather-pill {
+    display: none !important;
+  }
+  .topbar__login-pill-btn {
+    padding: 0 12px !important;
+    font-size: 12px !important;
+    height: 34px !important;
+  }
+  .topbar__heart-btn,
+  .topbar__cart-btn,
+  .topbar__stay-btn,
+  .lang-pill-btn {
+    width: 34px !important;
+    height: 34px !important;
+    padding: 0 !important;
+    justify-content: center !important;
+  }
+  .lang-pill-code,
+  .lang-pill-chevron {
+    display: none !important;
   }
 }

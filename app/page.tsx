@@ -6644,12 +6644,11 @@ export default function Home() {
     <main className="app-shell">
       {/* TOPBAR */}
       <header className="topbar topbar--v2">
-        <button className="brand brand--v2" onClick={() => setActiveTab("explore")} aria-label="Đất Tổ - Trợ lý du lịch thông minh" style={{ display: "flex", alignItems: "center", gap: "10px", background: "none", border: 0, padding: 0, cursor: "pointer" }}>
+        <button className="brand brand--v2" onClick={() => setActiveTab("explore")} aria-label="Đất Tổ - Trợ lý du lịch thông minh">
           <img
             src="/images/logo-dat-to.png"
             alt="Đất Tổ - Trợ lý du lịch thông minh"
             className="brand__full-logo-img"
-            style={{ height: "65px", width: "auto", objectFit: "contain", display: "block" }}
           />
         </button>
         <nav className="desktop-nav desktop-nav--v2" aria-label={t.bottomNavAria}>
@@ -6677,126 +6676,168 @@ export default function Home() {
             {txt({ vi: "Lưu trú", en: "Stays", zh: "住宿", ko: "숙소", ja: "宿泊" })}
           </button>
           <button className={activeTab === "vouchers" ? "is-active" : ""} onClick={() => setActiveTab("vouchers")}>
-            {t.vouchers || "Ưu đãi"}
+            {t.vouchers || "Khuyến mãi"}
           </button>
           <button className={`nav-near-btn ${activeTab === "near" ? "is-active" : ""}`} onClick={() => setActiveTab("near")}>
-            <span className="nav-near-dot">📍</span> {t.near}
+            <span className="nav-near-dot">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
+                <circle cx="12" cy="10" r="3" />
+              </svg>
+            </span>
+            <span>{t.near}</span>
           </button>
         </nav>
         <div className="topbar__actions">
-          {/* Language Dropdown Selector */}
-          <div className="i18n-dropdown-container">
-            <button
-              type="button"
-              className="lang-pill-btn"
-              onClick={() => { setLangDropdownOpen(!langDropdownOpen); }}
-              title={t.toastLangChanged}
-            >
-              <span>{LANGUAGES[currentLang].flag}</span>
-              <b>{currentLang.toUpperCase()}</b>
-              <small>▾</small>
+          {/* Utilities group: Language + Weather */}
+          <div className="topbar__actions-group topbar__actions-group--utils">
+            {/* Language Dropdown Selector */}
+            <div className="i18n-dropdown-container">
+              <button
+                type="button"
+                className="lang-pill-btn"
+                onClick={() => { setLangDropdownOpen(!langDropdownOpen); }}
+                title={t.toastLangChanged}
+              >
+                <span className="lang-pill-flag">{LANGUAGES[currentLang].flag}</span>
+                <b className="lang-pill-code">{currentLang.toUpperCase()}</b>
+                <svg className="lang-pill-chevron" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="6 9 12 15 18 9" />
+                </svg>
+              </button>
+              {langDropdownOpen && (
+                <div className="i18n-dropdown-menu">
+                  {(Object.keys(LANGUAGES) as LanguageCode[]).map((code) => (
+                    <button
+                      key={code}
+                      type="button"
+                      className={`i18n-dropdown-item ${currentLang === code ? "is-selected" : ""}`}
+                      onClick={() => {
+                        changeLanguage(code);
+                        setLangDropdownOpen(false);
+                      }}
+                    >
+                      <span>{LANGUAGES[code].flag} {LANGUAGES[code].label}</span>
+                      {currentLang === code && <span className="i18n-check">✓</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button className="weather-pill" onClick={() => showToast(`${weather.label} ${t.weatherToast}`)}>
+              <svg className="weather-pill-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="4.5" fill="#fef3c7" />
+                <line x1="12" y1="1" x2="12" y2="3" />
+                <line x1="12" y1="21" x2="12" y2="23" />
+                <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                <line x1="1" y1="12" x2="3" y2="12" />
+                <line x1="21" y1="12" x2="23" y2="12" />
+                <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+              </svg>
+              <b>{weather.temp}°</b>
+              <small>{currentLang === "zh" ? "越池" : currentLang === "ko" ? "비엣찌" : currentLang === "ja" ? "ヴィエッチー" : "Việt Trì"}</small>
             </button>
-            {langDropdownOpen && (
-              <div className="i18n-dropdown-menu">
-                {(Object.keys(LANGUAGES) as LanguageCode[]).map((code) => (
-                  <button
-                    key={code}
-                    type="button"
-                    className={`i18n-dropdown-item ${currentLang === code ? "is-selected" : ""}`}
-                    onClick={() => {
-                      changeLanguage(code);
-                      setLangDropdownOpen(false);
-                    }}
-                  >
-                    <span>{LANGUAGES[code].flag} {LANGUAGES[code].label}</span>
-                    {currentLang === code && <span>✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
-          <button className="weather-pill" onClick={() => showToast(`${weather.label} ${t.weatherToast}`)}>
-            <span>☀</span><b>{weather.temp}°</b><small>{currentLang === "zh" ? "越池" : currentLang === "ko" ? "비엣찌" : currentLang === "ja" ? "ヴィエッチー" : "Việt Trì"}</small>
-          </button>
+          <span className="topbar__divider" />
 
-          {/* Heart button for Favorites/Saved */}
-          <button
-            type="button"
-            className="topbar__heart-btn"
-            onClick={() => setActiveTab("saved")}
-            aria-label={t.saved}
-            title={`${t.saved} (${favorites.length + savedDishes.length + savedItineraryList.length})`}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
-            </svg>
-            {(favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
-              <span className="topbar__heart-badge">{favorites.length + savedDishes.length + savedItineraryList.length}</span>
-            )}
-          </button>
+          {/* Quick Icons group: Saved + Cart */}
+          <div className="topbar__actions-group topbar__actions-group--icons">
+            {/* Heart button for Favorites/Saved */}
+            <button
+              type="button"
+              className="topbar__heart-btn"
+              onClick={() => setActiveTab("saved")}
+              aria-label={t.saved}
+              title={`${t.saved} (${favorites.length + savedDishes.length + savedItineraryList.length})`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"></path>
+              </svg>
+              {(favorites.length + savedDishes.length + savedItineraryList.length > 0) && (
+                <span className="topbar__heart-badge">{favorites.length + savedDishes.length + savedItineraryList.length}</span>
+              )}
+            </button>
 
-          {/* Stay / Room Booking Button */}
-          <button
-            type="button"
-            className="topbar__stay-btn"
-            onClick={() => {
-              setCartDrawerTab("stays");
-              setCartOpen(true);
-            }}
-            aria-label="Đặt phòng lưu trú"
-            title="Đặt phòng lưu trú / Khách sạn & Homestay Phú Thọ"
-          >
-            <span style={{ fontSize: "16px" }}>🏨</span>
-            <span className="topbar__stay-btn-text">{t.detailBookRoom || "Đặt phòng"}</span>
-            {bookedRoomsList.length > 0 && (
-              <span className="topbar__stay-badge">{bookedRoomsList.length}</span>
-            )}
-          </button>
+            {/* Cart button in header */}
+            <button
+              type="button"
+              className="topbar__cart-btn"
+              onClick={() => {
+                setCartDrawerTab("cart");
+                setCartOpen(true);
+              }}
+              aria-label={t.floatingCartLabel}
+              title={`${t.floatingCartLabel} (${cartQuantity})`}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="9" cy="21" r="1"></circle>
+                <circle cx="20" cy="21" r="1"></circle>
+                <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+              </svg>
+              {cartQuantity > 0 && (
+                <span className="topbar__cart-badge">{cartQuantity}</span>
+              )}
+            </button>
+          </div>
 
-          {/* Cart button in header */}
-          <button
-            type="button"
-            className="topbar__cart-btn"
-            onClick={() => {
-              setCartDrawerTab("cart");
-              setCartOpen(true);
-            }}
-            aria-label={t.floatingCartLabel}
-            title={`${t.floatingCartLabel} (${cartQuantity})`}
-          >
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-              <circle cx="9" cy="21" r="1"></circle>
-              <circle cx="20" cy="21" r="1"></circle>
-              <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-            </svg>
-            {cartQuantity > 0 && (
-              <span className="topbar__cart-badge">{cartQuantity}</span>
-            )}
-          </button>
+          <span className="topbar__divider" />
 
-          {/* Green Pill Login Button */}
-          <button
-            type="button"
-            className="topbar__login-pill-btn"
-            onClick={() => {
-              if (authUser) {
-                setActiveTab("profile");
-              } else {
-                setAuthModalTab("login");
-                setAuthModalOpen(true);
-              }
-            }}
-          >
-            {authUser ? (
-              <span className="topbar__user-label">
-                <span className="topbar__user-avatar">{authUser.avatar || authUser.name.slice(0, 2).toUpperCase()}</span>
-                <span>{authUser.name.split(" ").slice(-1)[0] || "Tài khoản"}</span>
-              </span>
-            ) : (
-              <span>{t.authLoginBtn || "Đăng nhập"}</span>
-            )}
-          </button>
+          {/* Primary CTA Buttons: Stay Booking + Login */}
+          <div className="topbar__actions-group topbar__actions-group--cta">
+            {/* Stay / Room Booking Button */}
+            <button
+              type="button"
+              className="topbar__stay-btn"
+              onClick={() => {
+                setCartDrawerTab("stays");
+                setCartOpen(true);
+              }}
+              aria-label="Đặt phòng lưu trú"
+              title="Đặt phòng lưu trú / Khách sạn & Homestay Phú Thọ"
+            >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 7v14M21 7v14M3 16h18M3 10h18M7 10v6M17 10v6" />
+                <path d="M7 4h10a2 2 0 0 1 2 2v1H5V6a2 2 0 0 1 2-2z" />
+              </svg>
+              <span className="topbar__stay-btn-text">{t.detailBookRoom || "Đặt phòng lưu trú"}</span>
+              {bookedRoomsList.length > 0 && (
+                <span className="topbar__stay-badge">{bookedRoomsList.length}</span>
+              )}
+            </button>
+
+            {/* Login / User Profile Button */}
+            <button
+              type="button"
+              className="topbar__login-pill-btn"
+              onClick={() => {
+                if (authUser) {
+                  setActiveTab("profile");
+                } else {
+                  setAuthModalTab("login");
+                  setAuthModalOpen(true);
+                }
+              }}
+            >
+              {authUser ? (
+                <span className="topbar__user-label">
+                  <span className="topbar__user-avatar">{authUser.avatar || authUser.name.slice(0, 2).toUpperCase()}</span>
+                  <span>{authUser.name.split(" ").slice(-1)[0] || "Tài khoản"}</span>
+                </span>
+              ) : (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2" />
+                    <circle cx="12" cy="7" r="4" />
+                  </svg>
+                  <span>{t.authLoginBtn || "Đăng nhập"}</span>
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </header>
 
