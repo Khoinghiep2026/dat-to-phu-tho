@@ -62,3 +62,6 @@ pololu*/
 *.xlsx
 *.xls
 giong mau.m4a
+
+.vercel
+.env*
